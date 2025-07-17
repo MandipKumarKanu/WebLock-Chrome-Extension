@@ -1,0 +1,221 @@
+#weblock-modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 2147483647 !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    box-sizing: border-box !important;
+}
+
+.weblock-overlay {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    backdrop-filter: blur(10px) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    animation: weblockFadeIn 0.3s ease-out !important;
+}
+
+.weblock-modal-content {
+    background: linear-gradient(135deg, #1b1b1b 0%, #1b1b1b 100%);
+    padding: 40px !important;
+    border-radius: 20px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+    max-width: 400px !important;
+    width: 90% !important;
+    text-align: center !important;
+    color: white !important;
+    animation: weblockSlideUp 0.3s ease-out !important;
+    position: relative !important;
+}
+
+.weblock-header h1 {
+    font-size: 32px !important;
+    margin: 0 0 10px 0 !important;
+    font-weight: 700 !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+.weblock-header p {
+    font-size: 16px !important;
+    margin: 0 0 30px 0 !important;
+    opacity: 0.9 !important;
+}
+
+.weblock-form {
+    text-align: left !important;
+}
+
+.weblock-form-group {
+    margin-bottom: 20px !important;
+}
+
+.weblock-form-group label {
+    display: block !important;
+    margin-bottom: 8px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+}
+
+.weblock-form-group input[type="password"] {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-size: 16px !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #333 !important;
+    box-sizing: border-box !important;
+    transition: all 0.3s ease !important;
+}
+
+.weblock-form-group input[type="password"]:focus {
+    outline: none !important;
+    background: white !important;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3) !important;
+    transform: scale(1.02) !important;
+}
+
+.weblock-checkbox-group {
+    margin: 20px 0 30px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.weblock-checkbox-group label {
+    display: flex !important;
+    align-items: center !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    margin: 0 !important;
+}
+
+.weblock-checkbox-group input[type="checkbox"] {
+    margin-right: 8px !important;
+    width: 16px !important;
+    height: 16px !important;
+    cursor: pointer !important;
+}
+
+.weblock-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+}
+
+.weblock-btn {
+    padding: 14px 24px !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.weblock-btn-primary {
+    background: #4ecdc4 !important;
+    color: white !important;
+}
+
+.weblock-btn-primary:hover {
+    background: #45b7aa !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 25px rgba(78, 205, 196, 0.4) !important;
+}
+
+.weblock-btn-secondary {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.weblock-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-1px) !important;
+}
+
+.weblock-error {
+    color: #ff6b6b !important;
+    background: rgba(255, 107, 107, 0.2) !important;
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    margin-top: 8px !important;
+    display: none !important;
+    border: 1px solid rgba(255, 107, 107, 0.3) !important;
+}
+
+@keyframes weblockFadeIn {
+    from {
+        opacity: 0 !important;
+    }
+    to {
+        opacity: 1 !important;
+    }
+}
+
+@keyframes weblockSlideUp {
+    from {
+        opacity: 0 !important;
+        transform: translateY(30px) scale(0.95) !important;
+    }
+    to {
+        opacity: 1 !important;
+        transform: translateY(0) scale(1) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .weblock-modal-content {
+        padding: 24px !important;
+        margin: 20px !important;
+        width: calc(100% - 40px) !important;
+    }
+    
+    .weblock-header h1 {
+        font-size: 24px !important;
+    }
+    
+    .weblock-actions {
+        gap: 8px !important;
+    }
+    
+    .weblock-btn {
+        padding: 12px 20px !important;
+        font-size: 14px !important;
+    }
+}
+
+#weblock-modal * {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+
+#weblock-modal *:not(input):not(button):not(label) {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+}
+
+#weblock-modal {
+    pointer-events: auto !important;
+}
+
+.weblock-modal-content {
+    pointer-events: auto !important;
+}
