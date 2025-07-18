@@ -20,25 +20,26 @@ class WebLockBackground {
     }
 
     async initializeSessionData() {
-        const data = await this.getStorageData(['sessionUnlocked', 'extensionStartTime']);
+        const data = await this.getStorageData(['sessionUnlocked', 'extensionStartTime', 'tabSessions']);
         const now = Date.now();
         const lastStartTime = data.extensionStartTime || 0;
         const timeDiff = now - lastStartTime;
+        
         if (timeDiff > 5 * 60 * 1000) { 
             await this.setStorageData({ 
                 sessionUnlocked: [],
                 oneTimeUnlock: [],
                 dontAskAgainUrls: [],
+                tabSessions: {},
                 extensionStartTime: now
             });
             this.tabSessions.clear();
         } else {
             await this.setStorageData({ extensionStartTime: now });
-            const oneHourAgo = now - (60 * 60 * 1000);
-            for (const [key, timestamp] of this.tabSessions.entries()) {
-                if (timestamp < oneHourAgo) {
-                    this.tabSessions.delete(key);
-                }
+            const storedTabSessions = data.tabSessions || {};
+            this.tabSessions.clear();
+            for (const [key, timestamp] of Object.entries(storedTabSessions)) {
+                this.tabSessions.set(key, timestamp);
             }
         }
     }
@@ -66,6 +67,9 @@ class WebLockBackground {
                 this.tabSessions.delete(key);
             }
         }
+        
+        await this.saveTabSessions();
+        
         if (removeInfo.isWindowClosing) {
             const windows = await chrome.windows.getAll();
             if (windows.length <= 1) {
@@ -81,6 +85,7 @@ class WebLockBackground {
                     await this.setStorageData(updateData);
                 }
                 this.tabSessions.clear();
+                await this.saveTabSessions();
             }
         }
         if (removeInfo.isWindowClosing) {
@@ -111,6 +116,7 @@ class WebLockBackground {
                 const tabSessionKey = `${tabId}-${lockedUrl.id}`;
                 const isTabUnlocked = this.tabSessions.has(tabSessionKey);
                 
+                
                 if (!isTemporarilyUnlocked && !isSessionUnlocked && !isOneTimeUnlocked && !isTabUnlocked) {
                     const redirectKey = `${tabId}-${lockedUrl.id}`;
                     const now = Date.now();
@@ -128,6 +134,7 @@ class WebLockBackground {
                         `?action=unlock&url=${encodeURIComponent(url)}`;
                     await chrome.tabs.update(tabId, { url: unlockPageUrl });
                 } else {
+                    console.log(`WebLock Debug - Access allowed for ${url}`);
                     if (isOneTimeUnlocked) {
                         setTimeout(async () => {
                             try {
@@ -139,7 +146,9 @@ class WebLockBackground {
                     }
                 }
             }
-        } catch (error) {}
+        } catch (error) {
+            console.error('WebLock Error:', error);
+        }
     }
 
     urlMatches(currentUrl, lockedUrl) {
@@ -147,7 +156,6 @@ class WebLockBackground {
             const current = new URL(currentUrl);
             const locked = new URL(lockedUrl);
             
-            // Simple hostname matching - if the hostname matches, it's the same site
             return current.hostname === locked.hostname;
         } catch (error) {
             return false;
@@ -194,7 +202,16 @@ class WebLockBackground {
     unlockTabSession(tabId, urlId) {
         const tabSessionKey = `${tabId}-${urlId}`;
         this.tabSessions.set(tabSessionKey, Date.now());
+        this.saveTabSessions();
         return true;
+    }
+
+    async saveTabSessions() {
+        const tabSessionsObj = {};
+        for (const [key, timestamp] of this.tabSessions.entries()) {
+            tabSessionsObj[key] = timestamp;
+        }
+        await this.setStorageData({ tabSessions: tabSessionsObj });
     }
 
     handleMessage(request, sender, sendResponse) {
