@@ -46,11 +46,6 @@ web-lock/
 ├── options.css            # Full-page styling
 ├── options.js             # Main functionality with session management
 ├── background.js          # Background service worker with tab tracking
-├── popup.html             # Legacy popup (kept for compatibility)
-├── popup.css              # Legacy popup styling
-├── popup.js               # Legacy popup functionality
-├── content.js             # Content script (legacy modal system)
-├── content.css            # Modal styling (legacy)
 ├── debug.html             # Debug tools for session testing
 ├── icon16.png             # 16x16 extension icon
 ├── icon48.png             # 48x48 extension icon
