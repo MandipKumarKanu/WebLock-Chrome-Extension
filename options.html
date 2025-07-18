@@ -10,8 +10,8 @@
     <div id="setupPage" class="page hidden">
         <div class="container">
             <div class="header">
-                <h1>🔐 Welcome to WebLock</h1>
-                <p>Set up your website protection in just a few steps</p>
+                <h1 class="header-title">🔐 Welcome to WebLock</h1>
+                <p class="header-title">Set up your website protection in just a few steps</p>
             </div>
             
             <div class="setup-card">
@@ -24,7 +24,7 @@
                     
                     <div class="form-group">
                         <label for="password">Master Password</label>
-                        <input type="password" id="password" required placeholder="Create a strong password (min 6 characters)">
+                        <input type="password" id="password" required placeholder="Create a strong password (min 4 characters)">
                         <span class="error" id="passwordError"></span>
                     </div>
                     
@@ -90,14 +90,14 @@
     <div id="forgotPasswordPage" class="page hidden">
         <div class="container">
             <div class="header"></div>
-                <h1>🔐 Reset Your Password</h1>
-                <p>Forgot your WebLock password? No worries, we'll help you reset it.</p>
+                <h1 class="header-title">🔐 Reset Your Password</h1>
+                <p class="header-subtitle">Forgot your WebLock password? No worries, we'll help you reset it.</p>
             </div>
             
             <div class="reset-card">
                 <h2> Reset Password</h2>
-                <p>Enter your current password and set a new password.</p>
-                
+                <p class="reset-subtitle">Enter your current password and set a new password.</p>
+
                 <div class="form-group">
                     <label for="currentPassword">Current Password</label>
                     <input type="password" id="currentPassword" placeholder="Enter current password">
@@ -105,7 +105,7 @@
                 </div>
                 <div class="form-group">
                     <label for="newPassword">New Password</label>
-                    <input type="password" id="newPassword" placeholder="Enter new password (min 6 characters)">
+                    <input type="password" id="newPassword" placeholder="Enter new password (min 4 characters)">
                     <div id="newPasswordError" class="error"></div>
                 </div>
                 <div class="form-group">
@@ -146,7 +146,7 @@
                     
                     <div class="unlock-actions">
                         <button id="unlockBtn" class="btn btn-primary btn-large">Unlock Website</button>
-                        <button id="forgotPasswordUnlockBtn" class="btn btn-outline">Forgot Password?</button>
+                        <button id="forgotPasswordUnlockBtn" class="btn btn-outline btn-for">Forgot Password?</button>
                     </div>
                 </div>
             </div>
@@ -171,7 +171,7 @@
                 <div id="unlockPasswordStep" class="hidden">
                     <div class="form-group">
                         <label for="unlockNewPassword">New Password</label>
-                        <input type="password" id="unlockNewPassword" placeholder="Enter new password (min 6 characters)">
+                        <input type="password" id="unlockNewPassword" placeholder="Enter new password (min 4 characters)">
                         <div id="unlockNewPasswordError" class="error"></div>
                     </div>
                     <div class="form-group">

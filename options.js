@@ -1,319 +1,378 @@
 class WebLockOptions {
-    constructor() {
-        this.setupPage = document.getElementById('setupPage');
-        this.mainPage = document.getElementById('mainPage');
-        this.forgotPasswordPage = document.getElementById('forgotPasswordPage');
-        this.unlockPage = document.getElementById('unlockPage');
-        this.init();
-    }
+  constructor() {
+    this.setupPage = document.getElementById("setupPage");
+    this.mainPage = document.getElementById("mainPage");
+    this.forgotPasswordPage = document.getElementById("forgotPasswordPage");
+    this.unlockPage = document.getElementById("unlockPage");
+    this.init();
+  }
 
-    async init() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const action = urlParams.get('action');
-        const blockedUrl = urlParams.get('url');
-        if (action === 'unlock' && blockedUrl) {
-            await this.showUnlockPage(decodeURIComponent(blockedUrl));
-            return;
-        }
-        if (action === 'dashboard') {
-            await this.showDashboardUnlockPage();
-            return;
-        }
-        await this.checkInitialSetup();
-        this.bindEvents();
+  async init() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get("action");
+    const blockedUrl = urlParams.get("url");
+    if (action === "unlock" && blockedUrl) {
+      await this.showUnlockPage(decodeURIComponent(blockedUrl));
+      return;
     }
-
-    async checkInitialSetup() {
-        const data = await this.getStorageData(['isSetup', 'recoveryEmail', 'passwordHash']);
-        if (data.isSetup) {
-            this.showMainPage();
-            await this.loadLockedUrls();
-        } else {
-            this.showSetupPage();
-        }
+    if (action === "dashboard") {
+      await this.showDashboardUnlockPage();
+      return;
     }
+    await this.checkInitialSetup();
+    this.bindEvents();
+  }
 
-    showSetupPage() {
-        this.hideAllPages();
-        this.setupPage.classList.remove('hidden');
-        document.title = 'WebLock Setup';
+  async checkInitialSetup() {
+    const data = await this.getStorageData([
+      "isSetup",
+      "recoveryEmail",
+      "passwordHash",
+    ]);
+    if (data.isSetup) {
+      this.showMainPage();
+      await this.loadLockedUrls();
+    } else {
+      this.showSetupPage();
     }
+  }
 
-    showMainPage() {
-        this.hideAllPages();
-        this.mainPage.classList.remove('hidden');
-        document.title = 'WebLock Dashboard';
-        this.bindMainPageEvents();
-        this.loadLockedUrls();
-        setTimeout(() => {
-            this.bindUrlActionEvents();
-        }, 100);
+  showSetupPage() {
+    this.hideAllPages();
+    this.setupPage.classList.remove("hidden");
+    document.title = "WebLock Setup";
+  }
+
+  showMainPage() {
+    this.hideAllPages();
+    this.mainPage.classList.remove("hidden");
+    document.title = "WebLock Dashboard";
+    this.bindMainPageEvents();
+    this.loadLockedUrls();
+    setTimeout(() => {
+      this.bindUrlActionEvents();
+    }, 100);
+  }
+
+  showForgotPasswordPage() {
+    this.hideAllPages();
+    this.forgotPasswordPage.classList.remove("hidden");
+    document.title = "Reset Password - WebLock";
+  }
+
+  async showUnlockPage(blockedUrl) {
+    this.hideAllPages();
+    this.unlockPage.classList.remove("hidden");
+    document.title = "Website Locked - WebLock";
+    const urlDisplay = document.getElementById("blockedUrlDisplay");
+    if (urlDisplay) {
+      try {
+        const urlObj = new URL(blockedUrl);
+        urlDisplay.textContent = `Access to ${urlObj.hostname} is restricted`;
+      } catch (error) {
+        console.error("Error parsing URL:", error);
+        const hostname = blockedUrl
+          .replace(/^https?:\/\//, "")
+          .split("/")[0]
+          .split("?")[0];
+        urlDisplay.textContent = `Access to ${hostname} is restricted`;
+      }
     }
+    this.currentBlockedUrl = blockedUrl;
+    this.dashboardAccess = false;
+    this.bindUnlockPageEvents();
+    setTimeout(() => {
+      const passwordInput = document.getElementById("unlockPassword");
+      if (passwordInput) {
+        passwordInput.focus();
+      }
+    }, 100);
+  }
 
-    showForgotPasswordPage() {
-        this.hideAllPages();
-        this.forgotPasswordPage.classList.remove('hidden');
-        document.title = 'Reset Password - WebLock';
+  async showDashboardUnlockPage() {
+    const data = await this.getStorageData(["isSetup"]);
+    if (!data.isSetup) {
+      this.showSetupPage();
+      return;
     }
-
-    async showUnlockPage(blockedUrl) {
-        this.hideAllPages();
-        this.unlockPage.classList.remove('hidden');
-        document.title = 'Website Locked - WebLock';
-        const urlDisplay = document.getElementById('blockedUrlDisplay');
-        if (urlDisplay) {
-            urlDisplay.textContent = `Access to ${new URL(blockedUrl).hostname} is restricted`;
-        }
-        this.currentBlockedUrl = blockedUrl;
-        this.dashboardAccess = false;
-        this.bindUnlockPageEvents();
-        setTimeout(() => {
-            const passwordInput = document.getElementById('unlockPassword');
-            if (passwordInput) {
-                passwordInput.focus();
-            }
-        }, 100);
+    this.hideAllPages();
+    this.unlockPage.classList.remove("hidden");
+    document.title = "Dashboard Access - WebLock";
+    const urlDisplay = document.getElementById("blockedUrlDisplay");
+    if (urlDisplay) {
+      urlDisplay.textContent = "🔒 Dashboard Access Required";
     }
-
-    async showDashboardUnlockPage() {
-        const data = await this.getStorageData(['isSetup']);
-        if (!data.isSetup) {
-            this.showSetupPage();
-            return;
-        }
-        this.hideAllPages();
-        this.unlockPage.classList.remove('hidden');
-        document.title = 'Dashboard Access - WebLock';
-        const urlDisplay = document.getElementById('blockedUrlDisplay');
-        if (urlDisplay) {
-            urlDisplay.textContent = '🔒 Dashboard Access Required';
-        }
-        const dontAskContainer = document.querySelector('.checkbox-container');
-        if (dontAskContainer) {
-            dontAskContainer.style.display = 'none';
-        }
-        this.dashboardAccess = true;
-        this.currentBlockedUrl = null;
-        this.bindUnlockPageEvents();
-        setTimeout(() => {
-            const passwordInput = document.getElementById('unlockPassword');
-            if (passwordInput) {
-                passwordInput.focus();
-            }
-        }, 100);
+    const dontAskContainer = document.querySelector(".checkbox-container");
+    if (dontAskContainer) {
+      dontAskContainer.style.display = "none";
     }
+    this.dashboardAccess = true;
+    this.currentBlockedUrl = null;
+    this.bindUnlockPageEvents();
+    setTimeout(() => {
+      const passwordInput = document.getElementById("unlockPassword");
+      if (passwordInput) {
+        passwordInput.focus();
+      }
+    }, 100);
+  }
 
-    bindUnlockPageEvents() {
-        const unlockBtn = document.getElementById('unlockBtn');
-        if (unlockBtn) {
-            unlockBtn.replaceWith(unlockBtn.cloneNode(true));
-            const newUnlockBtn = document.getElementById('unlockBtn');
-            newUnlockBtn.addEventListener('click', this.handleUnlockWebsite.bind(this));
-        }
-        const unlockPassword = document.getElementById('unlockPassword');
-        if (unlockPassword) {
-            unlockPassword.replaceWith(unlockPassword.cloneNode(true));
-            const newPasswordInput = document.getElementById('unlockPassword');
-            newPasswordInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.handleUnlockWebsite();
-                }
-            });
-        }
-        const forgotPasswordUnlockBtn = document.getElementById('forgotPasswordUnlockBtn');
-        if (forgotPasswordUnlockBtn) {
-            forgotPasswordUnlockBtn.replaceWith(forgotPasswordUnlockBtn.cloneNode(true));
-            const newForgotBtn = document.getElementById('forgotPasswordUnlockBtn');
-            newForgotBtn.addEventListener('click', this.triggerForgotPassword.bind(this));
-        }
+  bindUnlockPageEvents() {
+    const unlockBtn = document.getElementById("unlockBtn");
+    if (unlockBtn) {
+      unlockBtn.replaceWith(unlockBtn.cloneNode(true));
+      const newUnlockBtn = document.getElementById("unlockBtn");
+      newUnlockBtn.addEventListener(
+        "click",
+        this.handleUnlockWebsite.bind(this)
+      );
     }
-
-    hideAllPages() {
-        this.setupPage.classList.add('hidden');
-        this.mainPage.classList.add('hidden');
-        this.forgotPasswordPage.classList.add('hidden');
-        this.unlockPage.classList.add('hidden');
+    const unlockPassword = document.getElementById("unlockPassword");
+    if (unlockPassword) {
+      unlockPassword.replaceWith(unlockPassword.cloneNode(true));
+      const newPasswordInput = document.getElementById("unlockPassword");
+      newPasswordInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          this.handleUnlockWebsite();
+        }
+      });
     }
-
-    bindEvents() {
-        const setupForm = document.getElementById('setupForm');
-        if (setupForm) {
-            setupForm.addEventListener('submit', this.handleSetup.bind(this));
-        }
-        const addUrlBtn = document.getElementById('addUrlBtn');
-        if (addUrlBtn) {
-            addUrlBtn.addEventListener('click', this.handleAddUrl.bind(this));
-        }
-        const forgotPasswordMainBtn = document.getElementById('forgotPasswordMainBtn');
-        if (forgotPasswordMainBtn) {
-            forgotPasswordMainBtn.addEventListener('click', this.triggerForgotPassword.bind(this));
-        }
-        const resetBtn = document.getElementById('resetBtn');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', this.handleReset.bind(this));
-        }
-        const resetPasswordBtn = document.getElementById('resetPasswordBtn');
-        if (resetPasswordBtn) {
-            resetPasswordBtn.addEventListener('click', this.handleResetPassword.bind(this));
-        }
-        const backToMainBtn = document.getElementById('backToMainBtn');
-        if (backToMainBtn) {
-            backToMainBtn.addEventListener('click', this.showMainPage.bind(this));
-        }
-        const unlockBtn = document.getElementById('unlockBtn');
-        if (unlockBtn) {
-            unlockBtn.addEventListener('click', this.handleUnlockWebsite.bind(this));
-        }
-        const forgotPasswordUnlockBtn = document.getElementById('forgotPasswordUnlockBtn');
-        if (forgotPasswordUnlockBtn) {
-            forgotPasswordUnlockBtn.addEventListener('click', this.triggerForgotPassword.bind(this));
-        }
-        const urlInput = document.getElementById('urlInput');
-        if (urlInput) {
-            urlInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.handleAddUrl();
-                }
-            });
-        }
-        const unlockPassword = document.getElementById('unlockPassword');
-        if (unlockPassword) {
-            unlockPassword.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.handleUnlockWebsite();
-                }
-            });
-        }
+    const forgotPasswordUnlockBtn = document.getElementById(
+      "forgotPasswordUnlockBtn"
+    );
+    if (forgotPasswordUnlockBtn) {
+      forgotPasswordUnlockBtn.replaceWith(
+        forgotPasswordUnlockBtn.cloneNode(true)
+      );
+      const newForgotBtn = document.getElementById("forgotPasswordUnlockBtn");
+      newForgotBtn.addEventListener(
+        "click",
+        this.triggerForgotPassword.bind(this)
+      );
     }
+  }
 
-    bindMainPageEvents() {
-        const addUrlBtn = document.getElementById('addUrlBtn');
-        if (addUrlBtn) {
-            addUrlBtn.replaceWith(addUrlBtn.cloneNode(true));
-            const newAddUrlBtn = document.getElementById('addUrlBtn');
-            newAddUrlBtn.addEventListener('click', this.handleAddUrl.bind(this));
-        }
-        const forgotPasswordMainBtn = document.getElementById('forgotPasswordMainBtn');
-        if (forgotPasswordMainBtn) {
-            forgotPasswordMainBtn.replaceWith(forgotPasswordMainBtn.cloneNode(true));
-            const newForgotBtn = document.getElementById('forgotPasswordMainBtn');
-            newForgotBtn.addEventListener('click', this.triggerForgotPassword.bind(this));
-        }
-        const resetBtn = document.getElementById('resetBtn');
-        if (resetBtn) {
-            resetBtn.replaceWith(resetBtn.cloneNode(true));
-            const newResetBtn = document.getElementById('resetBtn');
-            newResetBtn.addEventListener('click', this.handleReset.bind(this));
-        }
-        const resetPasswordNavBtn = document.getElementById('resetPasswordNavBtn');
-        if (resetPasswordNavBtn) {
-            resetPasswordNavBtn.replaceWith(resetPasswordNavBtn.cloneNode(true));
-            const newResetPasswordBtn = document.getElementById('resetPasswordNavBtn');
-            newResetPasswordBtn.addEventListener('click', this.triggerForgotPassword.bind(this));
-        }
-        const urlInput = document.getElementById('urlInput');
-        if (urlInput) {
-            urlInput.replaceWith(urlInput.cloneNode(true));
-            const newUrlInput = document.getElementById('urlInput');
-            newUrlInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.handleAddUrl();
-                }
-            });
-        }
-        const resetPasswordBtn = document.getElementById('resetPasswordBtn');
-        if (resetPasswordBtn) {
-            resetPasswordBtn.replaceWith(resetPasswordBtn.cloneNode(true));
-            const newResetPasswordBtn = document.getElementById('resetPasswordBtn');
-            newResetPasswordBtn.addEventListener('click', this.handleResetPassword.bind(this));
-        }
-        const backToMainBtn = document.getElementById('backToMainBtn');
-        if (backToMainBtn) {
-            backToMainBtn.replaceWith(backToMainBtn.cloneNode(true));
-            const newBackToMainBtn = document.getElementById('backToMainBtn');
-            newBackToMainBtn.addEventListener('click', this.showMainPage.bind(this));
-        }
+  hideAllPages() {
+    this.setupPage.classList.add("hidden");
+    this.mainPage.classList.add("hidden");
+    this.forgotPasswordPage.classList.add("hidden");
+    this.unlockPage.classList.add("hidden");
+  }
+
+  bindEvents() {
+    const setupForm = document.getElementById("setupForm");
+    if (setupForm) {
+      setupForm.addEventListener("submit", this.handleSetup.bind(this));
     }
-
-    async handleSetup(e) {
-        e.preventDefault();
-        const email = document.getElementById('recoveryEmail').value;
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
-        this.clearErrors();
-        if (!this.isValidEmail(email)) {
-            this.showError('emailError', 'Please enter a valid email address');
-            return;
-        }
-        if (password.length < 6) {
-            this.showError('passwordError', 'Password must be at least 6 characters');
-            return;
-        }
-        if (password !== confirmPassword) {
-            this.showError('confirmError', 'Passwords do not match');
-            return;
-        }
-        const passwordHash = await this.hashPassword(password);
-        await this.setStorageData({
-            isSetup: true,
-            recoveryEmail: email,
-            passwordHash: passwordHash,
-            lockedUrls: []
-        });
-        this.showSuccess('Setup complete! Redirecting to dashboard...');
-        setTimeout(() => {
-            this.showMainPage();
-        }, 1500);
+    const addUrlBtn = document.getElementById("addUrlBtn");
+    if (addUrlBtn) {
+      addUrlBtn.addEventListener("click", this.handleAddUrl.bind(this));
     }
-
-    async handleAddUrl() {
-        const urlInput = document.getElementById('urlInput');
-        const url = urlInput.value.trim();
-        if (!url) {
-            this.showNotification('Please enter a URL', 'error');
-            return;
-        }
-        if (!this.isValidUrl(url)) {
-            this.showNotification('Please enter a valid URL (e.g., https://example.com)', 'error');
-            return;
-        }
-        const data = await this.getStorageData(['lockedUrls']);
-        const lockedUrls = data.lockedUrls || [];
-        if (lockedUrls.some(item => item.url === url)) {
-            this.showNotification('This URL is already protected', 'warning');
-            return;
-        }
-        lockedUrls.push({
-            url: url,
-            id: Date.now().toString(),
-            createdAt: new Date().toISOString()
-        });
-        await this.setStorageData({ lockedUrls });
-        urlInput.value = '';
-        await this.loadLockedUrls();
-        this.showNotification(`${new URL(url).hostname} is now protected!`, 'success');
+    const forgotPasswordMainBtn = document.getElementById(
+      "forgotPasswordMainBtn"
+    );
+    if (forgotPasswordMainBtn) {
+      forgotPasswordMainBtn.addEventListener(
+        "click",
+        this.triggerForgotPassword.bind(this)
+      );
     }
+    const resetBtn = document.getElementById("resetBtn");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", this.handleReset.bind(this));
+    }
+    const resetPasswordBtn = document.getElementById("resetPasswordBtn");
+    if (resetPasswordBtn) {
+      resetPasswordBtn.addEventListener(
+        "click",
+        this.handleResetPassword.bind(this)
+      );
+    }
+    const backToMainBtn = document.getElementById("backToMainBtn");
+    if (backToMainBtn) {
+      backToMainBtn.addEventListener("click", this.showMainPage.bind(this));
+    }
+    const unlockBtn = document.getElementById("unlockBtn");
+    if (unlockBtn) {
+      unlockBtn.addEventListener("click", this.handleUnlockWebsite.bind(this));
+    }
+    const forgotPasswordUnlockBtn = document.getElementById(
+      "forgotPasswordUnlockBtn"
+    );
+    if (forgotPasswordUnlockBtn) {
+      forgotPasswordUnlockBtn.addEventListener(
+        "click",
+        this.triggerForgotPassword.bind(this)
+      );
+    }
+    const urlInput = document.getElementById("urlInput");
+    if (urlInput) {
+      urlInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          this.handleAddUrl();
+        }
+      });
+    }
+    const unlockPassword = document.getElementById("unlockPassword");
+    if (unlockPassword) {
+      unlockPassword.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          this.handleUnlockWebsite();
+        }
+      });
+    }
+  }
 
-    async loadLockedUrls() {
-        const data = await this.getStorageData(['lockedUrls']);
-        const lockedUrls = data.lockedUrls || [];
-        const listContainer = document.getElementById('lockedUrlsList');
-        const emptyState = document.getElementById('emptyState');
-        const urlCount = document.getElementById('urlCount');
-        if (urlCount) {
-            urlCount.textContent = `${lockedUrls.length} website${lockedUrls.length !== 1 ? 's' : ''} protected`;
+  bindMainPageEvents() {
+    const addUrlBtn = document.getElementById("addUrlBtn");
+    if (addUrlBtn) {
+      addUrlBtn.replaceWith(addUrlBtn.cloneNode(true));
+      const newAddUrlBtn = document.getElementById("addUrlBtn");
+      newAddUrlBtn.addEventListener("click", this.handleAddUrl.bind(this));
+    }
+    const forgotPasswordMainBtn = document.getElementById(
+      "forgotPasswordMainBtn"
+    );
+    if (forgotPasswordMainBtn) {
+      forgotPasswordMainBtn.replaceWith(forgotPasswordMainBtn.cloneNode(true));
+      const newForgotBtn = document.getElementById("forgotPasswordMainBtn");
+      newForgotBtn.addEventListener(
+        "click",
+        this.triggerForgotPassword.bind(this)
+      );
+    }
+    const resetBtn = document.getElementById("resetBtn");
+    if (resetBtn) {
+      resetBtn.replaceWith(resetBtn.cloneNode(true));
+      const newResetBtn = document.getElementById("resetBtn");
+      newResetBtn.addEventListener("click", this.handleReset.bind(this));
+    }
+    const resetPasswordNavBtn = document.getElementById("resetPasswordNavBtn");
+    if (resetPasswordNavBtn) {
+      resetPasswordNavBtn.replaceWith(resetPasswordNavBtn.cloneNode(true));
+      const newResetPasswordBtn = document.getElementById(
+        "resetPasswordNavBtn"
+      );
+      newResetPasswordBtn.addEventListener(
+        "click",
+        this.triggerForgotPassword.bind(this)
+      );
+    }
+    const urlInput = document.getElementById("urlInput");
+    if (urlInput) {
+      urlInput.replaceWith(urlInput.cloneNode(true));
+      const newUrlInput = document.getElementById("urlInput");
+      newUrlInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          this.handleAddUrl();
         }
-        if (lockedUrls.length === 0) {
-            if (listContainer) listContainer.innerHTML = '';
-            if (emptyState) emptyState.classList.remove('hidden');
-            return;
-        }
-        if (emptyState) emptyState.classList.add('hidden');
-        if (listContainer) {
-            listContainer.innerHTML = lockedUrls.map(item => {
-                const url = new URL(item.url);
-                const createdDate = new Date(item.createdAt).toLocaleDateString();
-                return `
+      });
+    }
+    const resetPasswordBtn = document.getElementById("resetPasswordBtn");
+    if (resetPasswordBtn) {
+      resetPasswordBtn.replaceWith(resetPasswordBtn.cloneNode(true));
+      const newResetPasswordBtn = document.getElementById("resetPasswordBtn");
+      newResetPasswordBtn.addEventListener(
+        "click",
+        this.handleResetPassword.bind(this)
+      );
+    }
+    const backToMainBtn = document.getElementById("backToMainBtn");
+    if (backToMainBtn) {
+      backToMainBtn.replaceWith(backToMainBtn.cloneNode(true));
+      const newBackToMainBtn = document.getElementById("backToMainBtn");
+      newBackToMainBtn.addEventListener("click", this.showMainPage.bind(this));
+    }
+  }
+
+  async handleSetup(e) {
+    e.preventDefault();
+    const email = document.getElementById("recoveryEmail").value;
+    const password = document.getElementById("password").value;
+    const confirmPassword = document.getElementById("confirmPassword").value;
+    this.clearErrors();
+    if (!this.isValidEmail(email)) {
+      this.showError("emailError", "Please enter a valid email address");
+      return;
+    }
+    if (password.length < 4) {
+      this.showError("passwordError", "Password must be at least 4 characters");
+      return;
+    }
+    if (password !== confirmPassword) {
+      this.showError("confirmError", "Passwords do not match");
+      return;
+    }
+    const passwordHash = await this.hashPassword(password);
+    await this.setStorageData({
+      isSetup: true,
+      recoveryEmail: email,
+      passwordHash: passwordHash,
+      lockedUrls: [],
+    });
+    this.showSuccess("Setup complete! Redirecting to dashboard...");
+    setTimeout(() => {
+      this.showMainPage();
+    }, 1500);
+  }
+
+  async handleAddUrl() {
+    const urlInput = document.getElementById("urlInput");
+    const url = urlInput.value.trim();
+    if (!url) {
+      this.showNotification("Please enter a URL", "error");
+      return;
+    }
+    if (!this.isValidUrl(url)) {
+      this.showNotification(
+        "Please enter a valid URL (e.g., https://example.com)",
+        "error"
+      );
+      return;
+    }
+    const data = await this.getStorageData(["lockedUrls"]);
+    const lockedUrls = data.lockedUrls || [];
+    if (lockedUrls.some((item) => item.url === url)) {
+      this.showNotification("This URL is already protected", "warning");
+      return;
+    }
+    lockedUrls.push({
+      url: url,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+    });
+    await this.setStorageData({ lockedUrls });
+    urlInput.value = "";
+    await this.loadLockedUrls();
+    this.showNotification(
+      `${new URL(url).hostname} is now protected!`,
+      "success"
+    );
+  }
+
+  async loadLockedUrls() {
+    const data = await this.getStorageData(["lockedUrls"]);
+    const lockedUrls = data.lockedUrls || [];
+    const listContainer = document.getElementById("lockedUrlsList");
+    const emptyState = document.getElementById("emptyState");
+    const urlCount = document.getElementById("urlCount");
+    if (urlCount) {
+      urlCount.textContent = `${lockedUrls.length} website${
+        lockedUrls.length !== 1 ? "s" : ""
+      } protected`;
+    }
+    if (lockedUrls.length === 0) {
+      if (listContainer) listContainer.innerHTML = "";
+      if (emptyState) emptyState.classList.remove("hidden");
+      return;
+    }
+    if (emptyState) emptyState.classList.add("hidden");
+    if (listContainer) {
+      listContainer.innerHTML = lockedUrls
+        .map((item) => {
+          const url = new URL(item.url);
+          const createdDate = new Date(item.createdAt).toLocaleDateString();
+          return `
                     <div class="url-item" data-id="${item.id}">
                         <div class="url-text">${item.url}</div>
                         <div class="url-meta">Protected since ${createdDate}</div>
@@ -324,400 +383,465 @@ class WebLockOptions {
                         </div>
                     </div>
                 `;
-            }).join('');
-            this.bindUrlActionEvents();
-        }
+        })
+        .join("");
+      this.bindUrlActionEvents();
     }
+  }
 
-    bindUrlActionEvents() {
-        const listContainer = document.getElementById('lockedUrlsList');
-        if (!listContainer) return;
-        const newContainer = listContainer.cloneNode(true);
-        listContainer.parentNode.replaceChild(newContainer, listContainer);
-        newContainer.addEventListener('click', (e) => {
-            const button = e.target.closest('button[data-action]');
-            if (!button) return;
-            const action = button.getAttribute('data-action');
-            const id = button.getAttribute('data-id');
-            if (action === 'unlock') {
-                this.unlockUrl(id);
-            } else if (action === 'edit') {
-                this.editUrl(id);
-            } else if (action === 'remove') {
-                this.removeUrl(id);
-            }
-        });
+  bindUrlActionEvents() {
+    const listContainer = document.getElementById("lockedUrlsList");
+    if (!listContainer) return;
+    const newContainer = listContainer.cloneNode(true);
+    listContainer.parentNode.replaceChild(newContainer, listContainer);
+    newContainer.addEventListener("click", (e) => {
+      const button = e.target.closest("button[data-action]");
+      if (!button) return;
+      const action = button.getAttribute("data-action");
+      const id = button.getAttribute("data-id");
+      if (action === "unlock") {
+        this.unlockUrl(id);
+      } else if (action === "edit") {
+        this.editUrl(id);
+      } else if (action === "remove") {
+        this.removeUrl(id);
+      }
+    });
+  }
+
+  async unlockUrl(id) {
+    const data = await this.getStorageData(["temporarilyUnlocked"]);
+    const temporarilyUnlocked = data.temporarilyUnlocked || [];
+    if (!temporarilyUnlocked.includes(id)) {
+      temporarilyUnlocked.push(id);
+      await this.setStorageData({ temporarilyUnlocked });
     }
+    this.showNotification(
+      "Website temporarily unlocked until browser restart",
+      "success"
+    );
+  }
 
-    async unlockUrl(id) {
-        const data = await this.getStorageData(['temporarilyUnlocked']);
-        const temporarilyUnlocked = data.temporarilyUnlocked || [];
-        if (!temporarilyUnlocked.includes(id)) {
-            temporarilyUnlocked.push(id);
-            await this.setStorageData({ temporarilyUnlocked });
-        }
-        this.showNotification('Website temporarily unlocked until browser restart', 'success');
+  async editUrl(id) {
+    const data = await this.getStorageData(["lockedUrls"]);
+    const lockedUrls = data.lockedUrls || [];
+    const urlToEdit = lockedUrls.find((item) => item.id === id);
+    if (!urlToEdit) {
+      this.showNotification("URL not found", "error");
+      return;
     }
-
-    async editUrl(id) {
-        const data = await this.getStorageData(['lockedUrls']);
-        const lockedUrls = data.lockedUrls || [];
-        const urlToEdit = lockedUrls.find(item => item.id === id);
-        if (!urlToEdit) {
-            this.showNotification('URL not found', 'error');
-            return;
-        }
-        const newUrl = await this.showEditUrlDialog(urlToEdit.url);
-        if (!newUrl || newUrl === urlToEdit.url) {
-            return;
-        }
-        if (!this.isValidUrl(newUrl)) {
-            this.showNotification('Please enter a valid URL', 'error');
-            return;
-        }
-        if (lockedUrls.some(item => item.url === newUrl && item.id !== id)) {
-            this.showNotification('This URL is already protected', 'warning');
-            return;
-        }
-        urlToEdit.url = newUrl;
-        urlToEdit.updatedAt = new Date().toISOString();
-        await this.setStorageData({ lockedUrls });
-        await this.loadLockedUrls();
-        const hostname = new URL(newUrl).hostname;
-        this.showNotification(`${hostname} updated successfully!`, 'success');
+    const newUrl = await this.showEditUrlDialog(urlToEdit.url);
+    if (!newUrl || newUrl === urlToEdit.url) {
+      return;
     }
-
-    async removeUrl(id) {
-        const data = await this.getStorageData(['lockedUrls']);
-        const lockedUrls = data.lockedUrls || [];
-        const urlToRemove = lockedUrls.find(item => item.id === id);
-        if (!urlToRemove) {
-            this.showNotification('URL not found', 'error');
-            return;
-        }
-        const hostname = new URL(urlToRemove.url).hostname;
-        const confirmed = await this.showDeleteConfirmDialog(hostname);
-        if (!confirmed) {
-            return;
-        }
-        const updatedUrls = lockedUrls.filter(item => item.id !== id);
-        await this.setStorageData({ lockedUrls: updatedUrls });
-        await this.loadLockedUrls();
-        this.showNotification(`${hostname} removed from protection`, 'success');
+    if (!this.isValidUrl(newUrl)) {
+      this.showNotification("Please enter a valid URL", "error");
+      return;
     }
-
-    async handleUnlockWebsite() {
-        const passwordInput = document.getElementById('unlockPassword');
-        const askAgainCheckbox = document.getElementById('askAgainOnNextPage');
-        const errorDiv = document.getElementById('unlockError');
-        const password = passwordInput.value.trim();
-        if (!password) {
-            this.showError('unlockError', 'Please enter your password');
-            this.showNotification('Please enter your password', 'error');
-            return;
-        }
-        this.clearErrors();
-        const unlockBtn = document.getElementById('unlockBtn');
-        const originalText = unlockBtn.textContent;
-        unlockBtn.textContent = 'Verifying...';
-        unlockBtn.disabled = true;
-        try {
-            const data = await this.getStorageData(['passwordHash', 'lockedUrls']);
-            const hash = await this.hashPassword(password);
-            if (hash === data.passwordHash) {
-                this.showNotification('Password correct! Processing...', 'success');
-                if (this.dashboardAccess) {
-                    setTimeout(() => {
-                        this.showMainPage();
-                    }, 1500);
-                    return;
-                }
-                try {
-                    await this.performWebsiteUnlock(data, askAgainCheckbox);
-                    setTimeout(async () => {
-                        try {
-                            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                            await chrome.tabs.update(tab.id, { url: this.currentBlockedUrl });
-                        } catch (error) {
-                            window.location.replace(this.currentBlockedUrl);
-                        }
-                    }, 1500);
-                } catch (unlockError) {
-                    this.showError('unlockError', 'Error during unlock process. Please try again.');
-                    this.showNotification('Error during unlock process. Please try again.', 'error');
-                    unlockBtn.textContent = originalText;
-                    unlockBtn.disabled = false;
-                    return;
-                }
-            } else {
-                this.showError('unlockError', 'Incorrect password. Please try again.');
-                this.showNotification('Incorrect password. Please try again.', 'error');
-                passwordInput.value = '';
-                passwordInput.focus();
-                unlockBtn.textContent = originalText;
-                unlockBtn.disabled = false;
-            }
-        } catch (error) {
-            this.showError('unlockError', 'Error verifying password. Please try again.');
-            this.showNotification('Error verifying password. Please try again.', 'error');
-            unlockBtn.textContent = originalText;
-            unlockBtn.disabled = false;
-        }
+    if (lockedUrls.some((item) => item.url === newUrl && item.id !== id)) {
+      this.showNotification("This URL is already protected", "warning");
+      return;
     }
+    urlToEdit.url = newUrl;
+    urlToEdit.updatedAt = new Date().toISOString();
+    await this.setStorageData({ lockedUrls });
+    await this.loadLockedUrls();
+    const hostname = new URL(newUrl).hostname;
+    this.showNotification(`${hostname} updated successfully!`, "success");
+  }
 
-    async performWebsiteUnlock(data, askAgainCheckbox) {
-        const lockedUrls = data.lockedUrls || [];
-        const lockedUrl = lockedUrls.find(item => this.urlMatches(this.currentBlockedUrl, item.url));
-        if (!lockedUrl) {
-            return;
-        }
-        const dontAskAgain = askAgainCheckbox.checked;
-        if (dontAskAgain) {
-            const sessionData = await this.getStorageData(['sessionUnlocked']);
-            const sessionUnlocked = sessionData.sessionUnlocked || [];
-            if (!sessionUnlocked.includes(lockedUrl.id)) {
-                sessionUnlocked.push(lockedUrl.id);
-                await this.setStorageData({ sessionUnlocked });
-            }
-            const dontAskData = await this.getStorageData(['dontAskAgainUrls']);
-            const dontAskUrls = dontAskData.dontAskAgainUrls || [];
-            if (!dontAskUrls.includes(lockedUrl.id)) {
-                dontAskUrls.push(lockedUrl.id);
-                await this.setStorageData({ dontAskAgainUrls: dontAskUrls });
-            }
-        } else {
-            const sessionData = await this.getStorageData(['sessionUnlocked']);
-            const sessionUnlocked = sessionData.sessionUnlocked || [];
-            const updatedSessionUnlocked = sessionUnlocked.filter(id => id !== lockedUrl.id);
-            await this.setStorageData({ sessionUnlocked: updatedSessionUnlocked });
-            const dontAskData = await this.getStorageData(['dontAskAgainUrls']);
-            const dontAskUrls = dontAskData.dontAskAgainUrls || [];
-            const updatedDontAskUrls = dontAskUrls.filter(id => id !== lockedUrl.id);
-            await this.setStorageData({ dontAskAgainUrls: updatedDontAskUrls });
-            try {
-                const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                if (currentTab) {
-                    chrome.runtime.sendMessage({
-                        action: 'unlockTabSession',
-                        tabId: currentTab.id,
-                        urlId: lockedUrl.id
-                    }, (response) => {});
-                } else {
-                    throw new Error('No current tab found for tab-only unlock');
-                }
-            } catch (error) {
-                throw error;
-            }
-        }
+  async removeUrl(id) {
+    const data = await this.getStorageData(["lockedUrls"]);
+    const lockedUrls = data.lockedUrls || [];
+    const urlToRemove = lockedUrls.find((item) => item.id === id);
+    if (!urlToRemove) {
+      this.showNotification("URL not found", "error");
+      return;
     }
-
-    async resetButtonState(button, originalText) {
-        button.textContent = originalText;
-        button.disabled = false;
+    const hostname = new URL(urlToRemove.url).hostname;
+    const confirmed = await this.showDeleteConfirmDialog(hostname);
+    if (!confirmed) {
+      return;
     }
+    const updatedUrls = lockedUrls.filter((item) => item.id !== id);
+    await this.setStorageData({ lockedUrls: updatedUrls });
+    await this.loadLockedUrls();
+    this.showNotification(`${hostname} removed from protection`, "success");
+  }
 
-    async handleReset() {
-        if (!confirm('This will reset the entire extension and remove all protected websites. Are you sure?')) {
-            return;
-        }
-        await chrome.storage.local.clear();
-        this.showNotification('Extension reset successfully', 'success');
-        setTimeout(() => {
-            this.showSetupPage();
-        }, 1000);
+  async handleUnlockWebsite() {
+    const passwordInput = document.getElementById("unlockPassword");
+    const askAgainCheckbox = document.getElementById("askAgainOnNextPage");
+    const errorDiv = document.getElementById("unlockError");
+    const password = passwordInput.value.trim();
+    if (!password) {
+      this.showError("unlockError", "Please enter your password");
+      this.showNotification("Please enter your password", "error");
+      return;
     }
-
-    async handleResetPassword() {
-        const currentPassword = document.getElementById('currentPassword').value;
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-        this.clearErrors();
-        if (!currentPassword) {
-            this.showError('currentPasswordError', 'Please enter your current password');
-            return;
-        }
-        const data = await this.getStorageData(['passwordHash']);
-        const currentHash = await this.hashPassword(currentPassword);
-        if (currentHash !== data.passwordHash) {
-            this.showError('currentPasswordError', 'Current password is incorrect');
-            return;
-        }
-        if (newPassword.length < 6) {
-            this.showError('newPasswordError', 'Password must be at least 6 characters');
-            return;
-        }
-        if (newPassword !== confirmNewPassword) {
-            this.showError('confirmNewPasswordError', 'New passwords do not match');
-            return;
-        }
-        if (currentPassword === newPassword) {
-            this.showError('newPasswordError', 'New password must be different from current password');
-            return;
-        }
-        const newPasswordHash = await this.hashPassword(newPassword);
-        await this.setStorageData({ 
-            passwordHash: newPasswordHash
-        });
-        this.showNotification('Password updated successfully!', 'success');
-        setTimeout(() => {
+    this.clearErrors();
+    const unlockBtn = document.getElementById("unlockBtn");
+    const originalText = unlockBtn.textContent;
+    unlockBtn.textContent = "Verifying...";
+    unlockBtn.disabled = true;
+    try {
+      const data = await this.getStorageData(["passwordHash", "lockedUrls"]);
+      const hash = await this.hashPassword(password);
+      if (hash === data.passwordHash) {
+        this.showNotification("Password correct! Processing...", "success");
+        if (this.dashboardAccess) {
+          setTimeout(() => {
             this.showMainPage();
-            document.getElementById('currentPassword').value = '';
-            document.getElementById('newPassword').value = '';
-            document.getElementById('confirmNewPassword').value = '';
-        }, 1500);
+          }, 1500);
+          return;
+        }
+        try {
+          await this.performWebsiteUnlock(data, askAgainCheckbox);
+          setTimeout(async () => {
+            try {
+              const [tab] = await chrome.tabs.query({
+                active: true,
+                currentWindow: true,
+              });
+              await chrome.tabs.update(tab.id, { url: this.currentBlockedUrl });
+            } catch (error) {
+              window.location.replace(this.currentBlockedUrl);
+            }
+          }, 1500);
+        } catch (unlockError) {
+          this.showError(
+            "unlockError",
+            "Error during unlock process. Please try again."
+          );
+          this.showNotification(
+            "Error during unlock process. Please try again.",
+            "error"
+          );
+          unlockBtn.textContent = originalText;
+          unlockBtn.disabled = false;
+          return;
+        }
+      } else {
+        this.showNotification("Incorrect password. Please try again.", "error");
+        passwordInput.value = "";
+        passwordInput.focus();
+        unlockBtn.textContent = originalText;
+        unlockBtn.disabled = false;
+      }
+    } catch (error) {
+      this.showError(
+        "unlockError",
+        "Error verifying password. Please try again."
+      );
+      this.showNotification(
+        "Error verifying password. Please try again.",
+        "error"
+      );
+      unlockBtn.textContent = originalText;
+      unlockBtn.disabled = false;
     }
+  }
 
-    async triggerForgotPassword() {
-        const unlockPage = document.getElementById('unlockPage');
-        if (unlockPage && !unlockPage.classList.contains('hidden')) {
-            this.showUnlockForgotPasswordPage();
+  async performWebsiteUnlock(data, askAgainCheckbox) {
+    const lockedUrls = data.lockedUrls || [];
+    const lockedUrl = lockedUrls.find((item) =>
+      this.urlMatches(this.currentBlockedUrl, item.url)
+    );
+    if (!lockedUrl) {
+      return;
+    }
+    const dontAskAgain = askAgainCheckbox.checked;
+    if (dontAskAgain) {
+      const sessionData = await this.getStorageData(["sessionUnlocked"]);
+      const sessionUnlocked = sessionData.sessionUnlocked || [];
+      if (!sessionUnlocked.includes(lockedUrl.id)) {
+        sessionUnlocked.push(lockedUrl.id);
+        await this.setStorageData({ sessionUnlocked });
+      }
+      const dontAskData = await this.getStorageData(["dontAskAgainUrls"]);
+      const dontAskUrls = dontAskData.dontAskAgainUrls || [];
+      if (!dontAskUrls.includes(lockedUrl.id)) {
+        dontAskUrls.push(lockedUrl.id);
+        await this.setStorageData({ dontAskAgainUrls: dontAskUrls });
+      }
+    } else {
+      const sessionData = await this.getStorageData(["sessionUnlocked"]);
+      const sessionUnlocked = sessionData.sessionUnlocked || [];
+      const updatedSessionUnlocked = sessionUnlocked.filter(
+        (id) => id !== lockedUrl.id
+      );
+      await this.setStorageData({ sessionUnlocked: updatedSessionUnlocked });
+      const dontAskData = await this.getStorageData(["dontAskAgainUrls"]);
+      const dontAskUrls = dontAskData.dontAskAgainUrls || [];
+      const updatedDontAskUrls = dontAskUrls.filter(
+        (id) => id !== lockedUrl.id
+      );
+      await this.setStorageData({ dontAskAgainUrls: updatedDontAskUrls });
+      try {
+        const [currentTab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        if (currentTab) {
+          chrome.runtime.sendMessage(
+            {
+              action: "unlockTabSession",
+              tabId: currentTab.id,
+              urlId: lockedUrl.id,
+            },
+            (response) => {}
+          );
         } else {
-            this.showForgotPasswordPage();
+          throw new Error("No current tab found for tab-only unlock");
         }
+      } catch (error) {
+        throw error;
+      }
     }
+  }
 
-    showUnlockForgotPasswordPage() {
-        document.getElementById('unlockPage').classList.add('hidden');
-        document.getElementById('unlockForgotPasswordPage').classList.remove('hidden');
-        this.bindUnlockForgotPasswordEvents();
+  async resetButtonState(button, originalText) {
+    button.textContent = originalText;
+    button.disabled = false;
+  }
+
+  async handleReset() {
+    if (
+      !confirm(
+        "This will reset the entire extension and remove all protected websites. Are you sure?"
+      )
+    ) {
+      return;
     }
+    await chrome.storage.local.clear();
+    this.showNotification("Extension reset successfully", "success");
+    setTimeout(() => {
+      this.showSetupPage();
+    }, 1000);
+  }
 
-    bindUnlockForgotPasswordEvents() {
-        const unlockVerifyEmailBtn = document.getElementById('unlockVerifyEmailBtn');
-        if (unlockVerifyEmailBtn) {
-            unlockVerifyEmailBtn.replaceWith(unlockVerifyEmailBtn.cloneNode(true));
-            const newBtn = document.getElementById('unlockVerifyEmailBtn');
-            newBtn.addEventListener('click', this.handleUnlockVerifyEmail.bind(this));
-        }
-        const unlockUpdatePasswordBtn = document.getElementById('unlockUpdatePasswordBtn');
-        if (unlockUpdatePasswordBtn) {
-            unlockUpdatePasswordBtn.replaceWith(unlockUpdatePasswordBtn.cloneNode(true));
-            const newBtn = document.getElementById('unlockUpdatePasswordBtn');
-            newBtn.addEventListener('click', this.handleUnlockUpdatePassword.bind(this));
-        }
-        const backToUnlockBtn = document.getElementById('backToUnlockBtn');
-        if (backToUnlockBtn) {
-            backToUnlockBtn.replaceWith(backToUnlockBtn.cloneNode(true));
-            const newBtn = document.getElementById('backToUnlockBtn');
-            newBtn.addEventListener('click', this.showUnlockPage.bind(this));
-        }
+  async handleResetPassword() {
+    const currentPassword = document.getElementById("currentPassword").value;
+    const newPassword = document.getElementById("newPassword").value;
+    const confirmNewPassword =
+      document.getElementById("confirmNewPassword").value;
+    this.clearErrors();
+    if (!currentPassword) {
+      this.showError(
+        "currentPasswordError",
+        "Please enter your current password"
+      );
+      return;
     }
-
-    async handleUnlockVerifyEmail() {
-        const emailInput = document.getElementById('unlockVerifyEmail');
-        const enteredEmail = emailInput.value.trim();
-        this.clearErrors();
-        if (!enteredEmail) {
-            this.showError('unlockEmailError', 'Please enter your email address');
-            return;
-        }
-        if (!this.isValidEmail(enteredEmail)) {
-            this.showError('unlockEmailError', 'Please enter a valid email address');
-            return;
-        }
-        const data = await this.getStorageData(['recoveryEmail']);
-        if (!data.recoveryEmail) {
-            this.showError('unlockEmailError', 'No recovery email found. Please reset password from dashboard.');
-            return;
-        }
-        if (enteredEmail.toLowerCase() !== data.recoveryEmail.toLowerCase()) {
-            this.showError('unlockEmailError', 'Email address does not match your recovery email');
-            return;
-        }
-        document.getElementById('unlockEmailStep').classList.add('hidden');
-        document.getElementById('unlockPasswordStep').classList.remove('hidden');
+    const data = await this.getStorageData(["passwordHash"]);
+    const currentHash = await this.hashPassword(currentPassword);
+    if (currentHash !== data.passwordHash) {
+      this.showError("currentPasswordError", "Current password is incorrect");
+      return;
     }
-
-    async handleUnlockUpdatePassword() {
-        const newPassword = document.getElementById('unlockNewPassword').value;
-        const confirmPassword = document.getElementById('unlockConfirmPassword').value;
-        this.clearErrors();
-        if (newPassword.length < 6) {
-            this.showError('unlockNewPasswordError', 'Password must be at least 6 characters');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            this.showError('unlockConfirmPasswordError', 'Passwords do not match');
-            return;
-        }
-        const newPasswordHash = await this.hashPassword(newPassword);
-        await this.setStorageData({ 
-            passwordHash: newPasswordHash 
-        });
-        this.showNotification('Password updated successfully!', 'success');
-        setTimeout(() => {
-            document.getElementById('unlockEmailStep').classList.remove('hidden');
-            document.getElementById('unlockPasswordStep').classList.add('hidden');
-            document.getElementById('unlockVerifyEmail').value = '';
-            document.getElementById('unlockNewPassword').value = '';
-            document.getElementById('unlockConfirmPassword').value = '';
-            this.showUnlockPage();
-        }, 1500);
+    if (newPassword.length < 4) {
+      this.showError(
+        "newPasswordError",
+        "Password must be at least 4 characters"
+      );
+      return;
     }
-
-    urlMatches(currentUrl, lockedUrl) {
-        try {
-            const current = new URL(currentUrl);
-            const locked = new URL(lockedUrl);
-            
-            // Simple hostname matching - if the hostname matches, it's the same site
-            return current.hostname === locked.hostname;
-        } catch (error) {
-            return false;
-        }
+    if (newPassword !== confirmNewPassword) {
+      this.showError("confirmNewPasswordError", "New passwords do not match");
+      return;
     }
-
-    isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
+    if (currentPassword === newPassword) {
+      this.showError(
+        "newPasswordError",
+        "New password must be different from current password"
+      );
+      return;
     }
+    const newPasswordHash = await this.hashPassword(newPassword);
+    await this.setStorageData({
+      passwordHash: newPasswordHash,
+    });
+    this.showNotification("Password updated successfully!", "success");
+    setTimeout(() => {
+      this.showMainPage();
+      document.getElementById("currentPassword").value = "";
+      document.getElementById("newPassword").value = "";
+      document.getElementById("confirmNewPassword").value = "";
+    }, 1500);
+  }
 
-    isValidUrl(string) {
-        try {
-            new URL(string);
-            return true;
-        } catch (_) {
-            return false;
-        }
+  async triggerForgotPassword() {
+    const unlockPage = document.getElementById("unlockPage");
+    if (unlockPage && !unlockPage.classList.contains("hidden")) {
+      this.showUnlockForgotPasswordPage();
+    } else {
+      this.showForgotPasswordPage();
     }
+  }
 
-    async hashPassword(password) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password);
-        const hash = await crypto.subtle.digest('SHA-256', data);
-        return Array.from(new Uint8Array(hash))
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
+  showUnlockForgotPasswordPage() {
+    document.getElementById("unlockPage").classList.add("hidden");
+    document
+      .getElementById("unlockForgotPasswordPage")
+      .classList.remove("hidden");
+    this.bindUnlockForgotPasswordEvents();
+  }
+
+  bindUnlockForgotPasswordEvents() {
+    const unlockVerifyEmailBtn = document.getElementById(
+      "unlockVerifyEmailBtn"
+    );
+    if (unlockVerifyEmailBtn) {
+      unlockVerifyEmailBtn.replaceWith(unlockVerifyEmailBtn.cloneNode(true));
+      const newBtn = document.getElementById("unlockVerifyEmailBtn");
+      newBtn.addEventListener("click", this.handleUnlockVerifyEmail.bind(this));
     }
-
-    showError(elementId, message) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = message;
-            element.style.display = 'block';
-            element.style.color = '#ff6b6b';
-            element.style.marginTop = '8px';
-            element.style.fontSize = '14px';
-        }
+    const unlockUpdatePasswordBtn = document.getElementById(
+      "unlockUpdatePasswordBtn"
+    );
+    if (unlockUpdatePasswordBtn) {
+      unlockUpdatePasswordBtn.replaceWith(
+        unlockUpdatePasswordBtn.cloneNode(true)
+      );
+      const newBtn = document.getElementById("unlockUpdatePasswordBtn");
+      newBtn.addEventListener(
+        "click",
+        this.handleUnlockUpdatePassword.bind(this)
+      );
     }
-
-    clearErrors() {
-        const errorElements = document.querySelectorAll('.error');
-        errorElements.forEach(el => {
-            el.textContent = '';
-            el.style.display = 'none';
-        });
+    const backToUnlockBtn = document.getElementById("backToUnlockBtn");
+    if (backToUnlockBtn) {
+      backToUnlockBtn.replaceWith(backToUnlockBtn.cloneNode(true));
+      const newBtn = document.getElementById("backToUnlockBtn");
+      newBtn.addEventListener("click", this.showUnlockPage.bind(this));
     }
+  }
 
-    showSuccess(message) {
-        this.showNotification(message, 'success');
+  async handleUnlockVerifyEmail() {
+    const emailInput = document.getElementById("unlockVerifyEmail");
+    const enteredEmail = emailInput.value.trim();
+    this.clearErrors();
+    if (!enteredEmail) {
+      this.showError("unlockEmailError", "Please enter your email address");
+      return;
     }
+    if (!this.isValidEmail(enteredEmail)) {
+      this.showError("unlockEmailError", "Please enter a valid email address");
+      return;
+    }
+    const data = await this.getStorageData(["recoveryEmail"]);
+    if (!data.recoveryEmail) {
+      this.showError(
+        "unlockEmailError",
+        "No recovery email found. Please reset password from dashboard."
+      );
+      return;
+    }
+    if (enteredEmail.toLowerCase() !== data.recoveryEmail.toLowerCase()) {
+      this.showError(
+        "unlockEmailError",
+        "Email address does not match your recovery email"
+      );
+      return;
+    }
+    document.getElementById("unlockEmailStep").classList.add("hidden");
+    document.getElementById("unlockPasswordStep").classList.remove("hidden");
+  }
 
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.textContent = message;
-        notification.style.cssText = `
+  async handleUnlockUpdatePassword() {
+    const newPassword = document.getElementById("unlockNewPassword").value;
+    const confirmPassword = document.getElementById(
+      "unlockConfirmPassword"
+    ).value;
+    this.clearErrors();
+    if (newPassword.length < 4) {
+      this.showError(
+        "unlockNewPasswordError",
+        "Password must be at least 4 characters"
+      );
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      this.showError("unlockConfirmPasswordError", "Passwords do not match");
+      return;
+    }
+    const newPasswordHash = await this.hashPassword(newPassword);
+    await this.setStorageData({
+      passwordHash: newPasswordHash,
+    });
+    this.showNotification("Password updated successfully!", "success");
+    setTimeout(() => {
+      document.getElementById("unlockEmailStep").classList.remove("hidden");
+      document.getElementById("unlockPasswordStep").classList.add("hidden");
+      document.getElementById("unlockVerifyEmail").value = "";
+      document.getElementById("unlockNewPassword").value = "";
+      document.getElementById("unlockConfirmPassword").value = "";
+      this.showUnlockPage();
+    }, 1500);
+  }
+
+  urlMatches(currentUrl, lockedUrl) {
+    try {
+      const current = new URL(currentUrl);
+      const locked = new URL(lockedUrl);
+
+      return current.hostname === locked.hostname;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  isValidUrl(string) {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  showError(elementId, message) {
+    const element = document.getElementById(elementId);
+    if (element) {
+      element.textContent = message;
+      element.style.display = "block";
+      element.style.color = "#ff6b6b";
+      element.style.marginTop = "8px";
+      element.style.fontSize = "14px";
+    }
+  }
+
+  clearErrors() {
+    const errorElements = document.querySelectorAll(".error");
+    errorElements.forEach((el) => {
+      el.textContent = "";
+      el.style.display = "none";
+    });
+  }
+
+  showSuccess(message) {
+    this.showNotification(message, "success");
+  }
+
+  showNotification(message, type = "info") {
+    const notification = document.createElement("div");
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
@@ -730,68 +854,68 @@ class WebLockOptions {
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             animation: slideInNotification 0.3s ease-out;
         `;
-        switch (type) {
-            case 'success':
-                notification.style.background = '#4ecdc4';
-                break;
-            case 'error':
-                notification.style.background = '#ff6b6b';
-                break;
-            case 'warning':
-                notification.style.background = '#ffa726';
-                break;
-            default:
-                notification.style.background = '#667eea';
-        }
-        if (!document.getElementById('notification-styles')) {
-            const style = document.createElement('style');
-            style.id = 'notification-styles';
-            style.textContent = `
+    switch (type) {
+      case "success":
+        notification.style.background = "#4ecdc4";
+        break;
+      case "error":
+        notification.style.background = "#ff6b6b";
+        break;
+      case "warning":
+        notification.style.background = "#ffa726";
+        break;
+      default:
+        notification.style.background = "#667eea";
+    }
+    if (!document.getElementById("notification-styles")) {
+      const style = document.createElement("style");
+      style.id = "notification-styles";
+      style.textContent = `
                 @keyframes slideInNotification {
                     from { transform: translateX(100%); opacity: 0; }
                     to { transform: translateX(0); opacity: 1; }
                 }
             `;
-            document.head.appendChild(style);
+      document.head.appendChild(style);
+    }
+    document.body.appendChild(notification);
+    setTimeout(() => {
+      notification.style.transform = "translateX(100%)";
+      notification.style.opacity = "0";
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
         }
-        document.body.appendChild(notification);
-        setTimeout(() => {
-            notification.style.transform = 'translateX(100%)';
-            notification.style.opacity = '0';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 3000);
-    }
+      }, 300);
+    }, 3000);
+  }
 
-    async getStorageData(keys) {
-        return new Promise((resolve) => {
-            chrome.storage.local.get(keys, resolve);
-        });
-    }
+  async getStorageData(keys) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(keys, resolve);
+    });
+  }
 
-    async setStorageData(data) {
-        return new Promise((resolve) => {
-            chrome.storage.local.set(data, resolve);
-        });
-    }
+  async setStorageData(data) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set(data, resolve);
+    });
+  }
 
-    generateOtp() {
-        return Math.floor(100000 + Math.random() * 900000).toString();
-    }
+  generateOtp() {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  }
 
-    async testPasswordVerification(testPassword) {
-        const data = await this.getStorageData(['passwordHash']);
-        const hash = await this.hashPassword(testPassword);
-        return hash === data.passwordHash;
-    }
+  async testPasswordVerification(testPassword) {
+    const data = await this.getStorageData(["passwordHash"]);
+    const hash = await this.hashPassword(testPassword);
+    return hash === data.passwordHash;
+  }
 
-    async showEditUrlDialog(currentUrl) {
-        return new Promise((resolve) => {
-            const overlay = document.createElement('div');
-            overlay.style.cssText = `
+  async showEditUrlDialog(currentUrl) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.style.cssText = `
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -804,8 +928,8 @@ class WebLockOptions {
                 z-index: 10000;
                 backdrop-filter: blur(5px);
             `;
-            const modal = document.createElement('div');
-            modal.style.cssText = `
+      const modal = document.createElement("div");
+      modal.style.cssText = `
                 background: white;
                 border-radius: 16px;
                 padding: 2rem;
@@ -814,7 +938,7 @@ class WebLockOptions {
                 box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
                 animation: modalSlideIn 0.3s ease-out;
             `;
-            modal.innerHTML = `
+      modal.innerHTML = `
                 <style>
                     @keyframes modalSlideIn {
                         from { transform: translateY(-20px); opacity: 0; }
@@ -853,50 +977,50 @@ class WebLockOptions {
                     ">Save Changes</button>
                 </div>
             `;
-            overlay.appendChild(modal);
-            document.body.appendChild(overlay);
-            const input = modal.querySelector('#editUrlInput');
-            const cancelBtn = modal.querySelector('#cancelEditBtn');
-            const saveBtn = modal.querySelector('#saveEditBtn');
-            setTimeout(() => {
-                input.focus();
-                input.select();
-            }, 100);
-            const cleanup = () => {
-                document.body.removeChild(overlay);
-            };
-            cancelBtn.addEventListener('click', () => {
-                cleanup();
-                resolve(null);
-            });
-            saveBtn.addEventListener('click', () => {
-                const newUrl = input.value.trim();
-                cleanup();
-                resolve(newUrl);
-            });
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const newUrl = input.value.trim();
-                    cleanup();
-                    resolve(newUrl);
-                } else if (e.key === 'Escape') {
-                    cleanup();
-                    resolve(null);
-                }
-            });
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) {
-                    cleanup();
-                    resolve(null);
-                }
-            });
-        });
-    }
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      const input = modal.querySelector("#editUrlInput");
+      const cancelBtn = modal.querySelector("#cancelEditBtn");
+      const saveBtn = modal.querySelector("#saveEditBtn");
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 100);
+      const cleanup = () => {
+        document.body.removeChild(overlay);
+      };
+      cancelBtn.addEventListener("click", () => {
+        cleanup();
+        resolve(null);
+      });
+      saveBtn.addEventListener("click", () => {
+        const newUrl = input.value.trim();
+        cleanup();
+        resolve(newUrl);
+      });
+      input.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          const newUrl = input.value.trim();
+          cleanup();
+          resolve(newUrl);
+        } else if (e.key === "Escape") {
+          cleanup();
+          resolve(null);
+        }
+      });
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          cleanup();
+          resolve(null);
+        }
+      });
+    });
+  }
 
-    async showDeleteConfirmDialog(hostname) {
-        return new Promise((resolve) => {
-            const overlay = document.createElement('div');
-            overlay.style.cssText = `
+  async showDeleteConfirmDialog(hostname) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.style.cssText = `
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -909,8 +1033,8 @@ class WebLockOptions {
                 z-index: 10000;
                 backdrop-filter: blur(5px);
             `;
-            const modal = document.createElement('div');
-            modal.style.cssText = `
+      const modal = document.createElement("div");
+      modal.style.cssText = `
                 background: white;
                 border-radius: 16px;
                 padding: 2rem;
@@ -920,7 +1044,7 @@ class WebLockOptions {
                 text-align: center;
                 animation: modalSlideIn 0.3s ease-out;
             `;
-            modal.innerHTML = `
+      modal.innerHTML = `
                 <div style="font-size: 4rem; margin-bottom: 1rem;">⚠️</div>
                 <h3 style="margin: 0 0 1rem 0; color: #333; font-size: 1.5rem;">Confirm Deletion</h3>
                 <p style="margin: 0 0 1.5rem 0; color: #666; line-height: 1.5;">
@@ -952,39 +1076,39 @@ class WebLockOptions {
                     ">Delete</button>
                 </div>
             `;
-            overlay.appendChild(modal);
-            document.body.appendChild(overlay);
-            const cancelBtn = modal.querySelector('#cancelDeleteBtn');
-            const confirmBtn = modal.querySelector('#confirmDeleteBtn');
-            const cleanup = () => {
-                document.body.removeChild(overlay);
-            };
-            cancelBtn.addEventListener('click', () => {
-                cleanup();
-                resolve(false);
-            });
-            confirmBtn.addEventListener('click', () => {
-                cleanup();
-                resolve(true);
-            });
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) {
-                    cleanup();
-                    resolve(false);
-                }
-            });
-            document.addEventListener('keydown', function escapeHandler(e) {
-                if (e.key === 'Escape') {
-                    document.removeEventListener('keydown', escapeHandler);
-                    cleanup();
-                    resolve(false);
-                }
-            });
-        });
-    }
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      const cancelBtn = modal.querySelector("#cancelDeleteBtn");
+      const confirmBtn = modal.querySelector("#confirmDeleteBtn");
+      const cleanup = () => {
+        document.body.removeChild(overlay);
+      };
+      cancelBtn.addEventListener("click", () => {
+        cleanup();
+        resolve(false);
+      });
+      confirmBtn.addEventListener("click", () => {
+        cleanup();
+        resolve(true);
+      });
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          cleanup();
+          resolve(false);
+        }
+      });
+      document.addEventListener("keydown", function escapeHandler(e) {
+        if (e.key === "Escape") {
+          document.removeEventListener("keydown", escapeHandler);
+          cleanup();
+          resolve(false);
+        }
+      });
+    });
+  }
 }
 
 let webLockOptions;
-document.addEventListener('DOMContentLoaded', () => {
-    webLockOptions = new WebLockOptions();
+document.addEventListener("DOMContentLoaded", () => {
+  webLockOptions = new WebLockOptions();
 });
