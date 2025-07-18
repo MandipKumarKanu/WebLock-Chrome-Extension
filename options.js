@@ -12,7 +12,19 @@ class WebLockOptions {
     const action = urlParams.get("action");
     const blockedUrl = urlParams.get("url");
     if (action === "unlock" && blockedUrl) {
-      await this.showUnlockPage(decodeURIComponent(blockedUrl));
+      // Handle potentially double-encoded URLs
+      let decodedUrl = blockedUrl;
+      try {
+        decodedUrl = decodeURIComponent(blockedUrl);
+        // Check if it's still encoded (contains %3A for :)
+        if (decodedUrl.includes('%3A')) {
+          decodedUrl = decodeURIComponent(decodedUrl);
+        }
+      } catch (error) {
+        console.error("Error decoding URL:", error);
+        decodedUrl = blockedUrl;
+      }
+      await this.showUnlockPage(decodedUrl);
       return;
     }
     if (action === "dashboard") {
@@ -67,11 +79,31 @@ class WebLockOptions {
     const urlDisplay = document.getElementById("blockedUrlDisplay");
     if (urlDisplay) {
       try {
-        const urlObj = new URL(blockedUrl);
-        urlDisplay.textContent = `Access to ${urlObj.hostname} is restricted`;
+        // Handle double-encoded URLs by decoding until we get a valid URL
+        let decodedUrl = blockedUrl;
+        let attempts = 0;
+        while (attempts < 3) {
+          try {
+            const urlObj = new URL(decodedUrl);
+            urlDisplay.textContent = `Access to ${urlObj.hostname} is restricted`;
+            break;
+          } catch (e) {
+            decodedUrl = decodeURIComponent(decodedUrl);
+            attempts++;
+            if (attempts >= 3) throw e;
+          }
+        }
       } catch (error) {
         console.error("Error parsing URL:", error);
-        const hostname = blockedUrl
+        // Fallback: extract hostname from the URL string
+        let hostname = blockedUrl;
+        try {
+          // Try to decode at least once for the fallback
+          hostname = decodeURIComponent(blockedUrl);
+        } catch (e) {
+          // If decode fails, use original
+        }
+        hostname = hostname
           .replace(/^https?:\/\//, "")
           .split("/")[0]
           .split("?")[0];
@@ -552,6 +584,7 @@ class WebLockOptions {
     }
     const dontAskAgain = askAgainCheckbox.checked;
     if (dontAskAgain) {
+      // Don't ask again until browser close - add to session unlock
       const sessionData = await this.getStorageData(["sessionUnlocked"]);
       const sessionUnlocked = sessionData.sessionUnlocked || [];
       if (!sessionUnlocked.includes(lockedUrl.id)) {
@@ -565,18 +598,7 @@ class WebLockOptions {
         await this.setStorageData({ dontAskAgainUrls: dontAskUrls });
       }
     } else {
-      const sessionData = await this.getStorageData(["sessionUnlocked"]);
-      const sessionUnlocked = sessionData.sessionUnlocked || [];
-      const updatedSessionUnlocked = sessionUnlocked.filter(
-        (id) => id !== lockedUrl.id
-      );
-      await this.setStorageData({ sessionUnlocked: updatedSessionUnlocked });
-      const dontAskData = await this.getStorageData(["dontAskAgainUrls"]);
-      const dontAskUrls = dontAskData.dontAskAgainUrls || [];
-      const updatedDontAskUrls = dontAskUrls.filter(
-        (id) => id !== lockedUrl.id
-      );
-      await this.setStorageData({ dontAskAgainUrls: updatedDontAskUrls });
+      // Tab-only mode - unlock for current tab session only
       try {
         const [currentTab] = await chrome.tabs.query({
           active: true,
