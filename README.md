@@ -8,11 +8,11 @@ Got a problem with people snooping around your browser when you step away? Need 
 
 WebLock is basically like having a personal security guard for your browser tabs - except instead of wearing a suit and sunglasses, it just asks for a password before letting anyone through.
 
-## � Screenshot
+## 📸 Screenshot
 
 ![WebLock Screenshot](screenshot.png)
 
-## �🛠️ Installation
+## 🛠️ Installation
 
 1. Download or clone the repo
 2. Open your Chromium-based browser and go to `chrome://extensions/` (for Chrome)
