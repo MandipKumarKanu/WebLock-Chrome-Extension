@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebLock - Website Protection</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div id="setupPage" class="page hidden">
+        <div class="container">
+            <div class="header">
+                <h1>🔐 Welcome to WebLock</h1>
+                <p>Set up your website protection in just a few steps</p>
+            </div>
+            
+            <div class="setup-card">
+                <form id="setupForm">
+                    <div class="form-group">
+                        <label for="recoveryEmail">Recovery Email</label>
+                        <input type="email" id="recoveryEmail" required placeholder="Enter your email address">
+                        <span class="error" id="emailError"></span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Master Password</label>
+                        <input type="password" id="password" required placeholder="Create a strong password (min 6 characters)">
+                        <span class="error" id="passwordError"></span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" required placeholder="Confirm your password">
+                        <span class="error" id="confirmError"></span>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Setup WebLock</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainPage" class="page hidden">
+        <nav class="navbar">
+            <div class="nav-container">
+                <h1>🔐 WebLock Dashboard</h1>
+                <div class="nav-actions">
+                    <button id="resetPasswordNavBtn" class="btn btn-outline">🔑 Reset Password</button>
+                    <button id="resetBtn" class="btn btn-danger">🗑️ Reset Extension</button>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container">
+            <div class="main-content">
+                <div class="card add-url-card">
+                    <h2>🌐 Add Website to Lock</h2>
+                    <p>Enter any website URL to protect it with your password</p>
+                    
+                    <div class="add-url-form">
+                        <div class="input-group">
+                            <input type="url" id="urlInput" placeholder="https://example.com" class="url-input">
+                            <button id="addUrlBtn" class="btn btn-primary">Lock Website</button>
+                        </div>
+                        <div class="url-examples">
+                            <small>Examples: https://facebook.com, https://instagram.com, https://youtube.com</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card locked-urls-card">
+                    <div class="card-header">
+                        <h2>🔒 Protected Websites</h2>
+                        <span id="urlCount" class="url-count">0 websites protected</span>
+                    </div>
+                    
+                    <div id="lockedUrlsList" class="urls-grid">
+                    </div>
+                    
+                    <div id="emptyState" class="empty-state hidden">
+                        <div class="empty-icon">🌐</div>
+                        <h3>No Protected Websites Yet</h3>
+                        <p>Add your first website above to get started with WebLock protection!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="forgotPasswordPage" class="page hidden">
+        <div class="container">
+            <div class="header"></div>
+                <h1>🔐 Reset Your Password</h1>
+                <p>Forgot your WebLock password? No worries, we'll help you reset it.</p>
+            </div>
+            
+            <div class="reset-card">
+                <h2> Reset Password</h2>
+                <p>Enter your current password and set a new password.</p>
+                
+                <div class="form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" placeholder="Enter current password">
+                    <div id="currentPasswordError" class="error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" placeholder="Enter new password (min 6 characters)">
+                    <div id="newPasswordError" class="error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="confirmNewPassword">Confirm New Password</label>
+                    <input type="password" id="confirmNewPassword" placeholder="Confirm new password">
+                    <div id="confirmNewPasswordError" class="error"></div>
+                </div>
+                <button id="resetPasswordBtn" class="btn btn-primary">Update Password</button>
+                
+                <button id="backToMainBtn" class="btn btn-secondary mt-3">← Back to Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="unlockPage" class="page hidden">
+        <div class="unlock-container">
+            <div class="unlock-card">
+                <div class="unlock-header">
+                    <div class="unlock-icon">🔐</div>
+                    <h1>Website Locked</h1>
+                    <p id="blockedUrlDisplay">This website is protected by WebLock</p>
+                </div>
+                
+                <div class="unlock-form">
+                    <div class="form-group"></div>
+                        <label for="unlockPassword">Enter Your Password</label>
+                        <input type="password" id="unlockPassword" placeholder="Enter your WebLock password" class="unlock-input">
+                        <div class="error" id="unlockError"></div>
+                    </div>
+                    
+                    <div class="unlock-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="askAgainOnNextPage">
+                            <span class="checkmark"></span>
+                            Don't ask again until I close the browser
+                        </label>
+                    </div>
+                    
+                    <div class="unlock-actions">
+                        <button id="unlockBtn" class="btn btn-primary btn-large">Unlock Website</button>
+                        <button id="forgotPasswordUnlockBtn" class="btn btn-outline">Forgot Password?</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="unlockForgotPasswordPage" class="page hidden">
+        <div class="unlock-container">
+            <div class="unlock-card">
+                <h2>🔐 Forgot Password</h2>
+                <p>Reset your password to unlock this website.</p>
+
+                <div id="unlockEmailStep">
+                    <div class="form-group">
+                        <label for="unlockVerifyEmail">Recovery Email</label>
+                        <input type="email" id="unlockVerifyEmail" placeholder="Enter your recovery email">
+                        <div id="unlockEmailError" class="error"></div>
+                    </div>
+                    <button id="unlockVerifyEmailBtn" class="btn btn-primary">Verify Email</button>
+                </div>
+
+                <div id="unlockPasswordStep" class="hidden">
+                    <div class="form-group">
+                        <label for="unlockNewPassword">New Password</label>
+                        <input type="password" id="unlockNewPassword" placeholder="Enter new password (min 6 characters)">
+                        <div id="unlockNewPasswordError" class="error"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="unlockConfirmPassword">Confirm New Password</label>
+                        <input type="password" id="unlockConfirmPassword" placeholder="Confirm new password">
+                        <div id="unlockConfirmPasswordError" class="error"></div>
+                    </div>
+                    <button id="unlockUpdatePasswordBtn" class="btn btn-primary">Update Password</button>
+                </div>
+
+                <button id="backToUnlockBtn" class="btn btn-secondary mt-3">← Back to Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+</html>
