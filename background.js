@@ -110,6 +110,7 @@ class WebLockBackground {
                 const isOneTimeUnlocked = oneTimeUnlock.includes(lockedUrl.id);
                 const tabSessionKey = `${tabId}-${lockedUrl.id}`;
                 const isTabUnlocked = this.tabSessions.has(tabSessionKey);
+                
                 if (!isTemporarilyUnlocked && !isSessionUnlocked && !isOneTimeUnlocked && !isTabUnlocked) {
                     const redirectKey = `${tabId}-${lockedUrl.id}`;
                     const now = Date.now();
@@ -145,11 +146,9 @@ class WebLockBackground {
         try {
             const current = new URL(currentUrl);
             const locked = new URL(lockedUrl);
-            let currentPath = current.pathname.replace(/\/$/, '') || '/';
-            let lockedPath = locked.pathname.replace(/\/$/, '') || '/';
-            const hostnameMatch = current.hostname === locked.hostname;
-            const pathMatch = currentPath.startsWith(lockedPath);
-            return hostnameMatch && pathMatch;
+            
+            // Simple hostname matching - if the hostname matches, it's the same site
+            return current.hostname === locked.hostname;
         } catch (error) {
             return false;
         }

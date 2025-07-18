@@ -659,12 +659,9 @@ class WebLockOptions {
         try {
             const current = new URL(currentUrl);
             const locked = new URL(lockedUrl);
-            let currentPath = current.pathname.replace(/\/$/, '') || '/';
-            let lockedPath = locked.pathname.replace(/\/$/, '') || '/';
-            const hostnameMatch = current.hostname === locked.hostname;
-            const pathMatch = currentPath.startsWith(lockedPath);
-            const finalResult = hostnameMatch && pathMatch;
-            return finalResult;
+            
+            // Simple hostname matching - if the hostname matches, it's the same site
+            return current.hostname === locked.hostname;
         } catch (error) {
             return false;
         }
