@@ -19,6 +19,10 @@ class WebLockBackground {
     chrome.action.onClicked.addListener(this.handleIconClick.bind(this));
     chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
     this.initializeSessionData();
+    
+    setInterval(async () => {
+      await this.ensureTabSessionsLoaded();
+    }, 10000);
   }
 
   async initializeSessionData() {
@@ -31,31 +35,31 @@ class WebLockBackground {
     const lastStartTime = data.extensionStartTime || 0;
     const timeDiff = now - lastStartTime;
 
+    const storedTabSessions = data.tabSessions || {};
+    this.tabSessions.clear();
+    for (const [key, timestamp] of Object.entries(storedTabSessions)) {
+      this.tabSessions.set(key, timestamp);
+    }
+
     if (timeDiff > 5 * 60 * 1000) {
       await this.setStorageData({
         sessionUnlocked: [],
         oneTimeUnlock: [],
         dontAskAgainUrls: [],
-        tabSessions: {},
         extensionStartTime: now,
       });
-      this.tabSessions.clear();
     } else {
       await this.setStorageData({ extensionStartTime: now });
-      const storedTabSessions = data.tabSessions || {};
-      this.tabSessions.clear();
-      for (const [key, timestamp] of Object.entries(storedTabSessions)) {
-        this.tabSessions.set(key, timestamp);
-      }
     }
   }
 
   async handleNavigation(details) {
     if (details.frameId !== 0) return;
     if (details.url.includes(chrome.runtime.getURL("options.html"))) return;
+    
     setTimeout(async () => {
       await this.checkAndBlockUrl(details.url, details.tabId);
-    }, 200);
+    }, 500);
   }
 
   async handleTabUpdate(tabId, changeInfo, tab) {
@@ -63,7 +67,10 @@ class WebLockBackground {
     const url = changeInfo.url || tab.url;
     if (url) {
       if (url.includes(chrome.runtime.getURL("options.html"))) return;
-      await this.checkAndBlockUrl(url, tabId);
+      
+      setTimeout(async () => {
+        await this.checkAndBlockUrl(url, tabId);
+      }, 300);
     }
   }
 
@@ -113,6 +120,8 @@ class WebLockBackground {
 
   async checkAndBlockUrl(url, tabId) {
     try {
+      await this.ensureTabSessionsLoaded();
+      
       const data = await this.getStorageData([
         "lockedUrls",
         "temporarilyUnlocked",
@@ -142,6 +151,11 @@ class WebLockBackground {
         const isOneTimeUnlocked = oneTimeUnlock.includes(lockedUrl.id);
         const tabSessionKey = `${tabId}-${lockedUrl.id}`;
         const isTabUnlocked = this.tabSessions.has(tabSessionKey);
+
+        console.log(`WebLock Debug - Checking access for ${url} on tab ${tabId}`);
+        console.log(`WebLock Debug - Tab session key: ${tabSessionKey}`);
+        console.log(`WebLock Debug - Tab unlocked: ${isTabUnlocked}`);
+        console.log(`WebLock Debug - Available tab sessions:`, Array.from(this.tabSessions.keys()));
 
         if (
           !isTemporarilyUnlocked &&
@@ -183,6 +197,17 @@ class WebLockBackground {
     } catch (error) {
       console.error("WebLock Error:", error);
     }
+  }
+
+  async ensureTabSessionsLoaded() {
+    const data = await this.getStorageData(["tabSessions"]);
+    const storedTabSessions = data.tabSessions || {};
+    
+    for (const [key, timestamp] of Object.entries(storedTabSessions)) {
+      this.tabSessions.set(key, timestamp);
+    }
+    
+    console.log(`WebLock Debug - Loaded tab sessions from storage:`, Object.keys(storedTabSessions));
   }
 
   urlMatches(currentUrl, lockedUrl) {
@@ -236,8 +261,13 @@ class WebLockBackground {
 
   unlockTabSession(tabId, urlId) {
     const tabSessionKey = `${tabId}-${urlId}`;
-    this.tabSessions.set(tabSessionKey, Date.now());
+    const timestamp = Date.now();
+    this.tabSessions.set(tabSessionKey, timestamp);
+    
     this.saveTabSessions();
+    
+    console.log(`WebLock Debug - Tab session unlocked for tab ${tabId}, url ${urlId}`);
+    console.log(`WebLock Debug - Session key: ${tabSessionKey} at timestamp: ${timestamp}`);
     return true;
   }
 
@@ -247,6 +277,7 @@ class WebLockBackground {
       tabSessionsObj[key] = timestamp;
     }
     await this.setStorageData({ tabSessions: tabSessionsObj });
+    console.log(`WebLock Debug - Saved tab sessions to storage:`, Object.keys(tabSessionsObj));
   }
 
   handleMessage(request, sender, sendResponse) {
