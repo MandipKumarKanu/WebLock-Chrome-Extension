@@ -1,21 +1,35 @@
 class WebLockOptions {
   constructor() {
+    console.log("WebLock Debug - Options constructor called");
     this.setupPage = document.getElementById("setupPage");
     this.mainPage = document.getElementById("mainPage");
     this.forgotPasswordPage = document.getElementById("forgotPasswordPage");
     this.unlockPage = document.getElementById("unlockPage");
+    
+    console.log("WebLock Debug - DOM elements found:", {
+      setupPage: !!this.setupPage,
+      mainPage: !!this.mainPage,
+      forgotPasswordPage: !!this.forgotPasswordPage,
+      unlockPage: !!this.unlockPage
+    });
+    
     this.init();
   }
 
   async init() {
+    console.log("WebLock Debug - Init method called");
+    
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get("action");
     const blockedUrl = urlParams.get("url");
+
+    console.log("WebLock Debug - URL params:", { action, blockedUrl });
+
     if (action === "unlock" && blockedUrl) {
       let decodedUrl = blockedUrl;
       try {
         decodedUrl = decodeURIComponent(blockedUrl);
-        if (decodedUrl.includes('%3A')) {
+        if (decodedUrl.includes("%3A")) {
           decodedUrl = decodeURIComponent(decodedUrl);
         }
       } catch (error) {
@@ -25,21 +39,33 @@ class WebLockOptions {
       await this.showUnlockPage(decodedUrl);
       return;
     }
+
     if (action === "dashboard") {
-      await this.showDashboardUnlockPage();
+      console.log("WebLock Debug - Dashboard action detected");
+      const isSetup = await this.isSetupComplete();
+      console.log("WebLock Debug - Setup complete:", isSetup);
+      if (isSetup) {
+        await this.showDashboardUnlockPage();
+      } else {
+        console.log("WebLock Debug - Setup not complete, showing setup page");
+        this.showSetupPage();
+      }
       return;
     }
+    
+    console.log("WebLock Debug - Default behavior, checking initial setup");
     await this.checkInitialSetup();
     this.bindEvents();
   }
 
+  async isSetupComplete() {
+    const data = await this.getStorageData(["isSetup"]);
+    return !!data.isSetup;
+  }
+
   async checkInitialSetup() {
-    const data = await this.getStorageData([
-      "isSetup",
-      "recoveryEmail",
-      "passwordHash",
-    ]);
-    if (data.isSetup) {
+    const isSetup = await this.isSetupComplete();
+    if (isSetup) {
       this.showMainPage();
       await this.loadLockedUrls();
     } else {
@@ -51,6 +77,60 @@ class WebLockOptions {
     this.hideAllPages();
     this.setupPage.classList.remove("hidden");
     document.title = "WebLock Setup";
+    
+    this.bindSetupPageEvents();
+  }
+
+  bindSetupPageEvents() {
+    console.log("WebLock Debug - bindSetupPageEvents called");
+    
+    const setupForm = document.getElementById("setupForm");
+    console.log("WebLock Debug - Setup form found:", !!setupForm);
+    
+    if (setupForm) {
+      setupForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("WebLock Debug - Form submit prevented");
+        return false;
+      });
+    }
+    
+    const setupBtn = document.getElementById("setupWebLockBtn");
+    console.log("WebLock Debug - Setup button found:", !!setupBtn);
+    
+    if (setupBtn) {
+      console.log("WebLock Debug - Button text:", setupBtn.textContent);
+      console.log("WebLock Debug - Button disabled:", setupBtn.disabled);
+      
+      setupBtn.replaceWith(setupBtn.cloneNode(true));
+      const newSetupBtn = document.getElementById("setupWebLockBtn");
+      console.log("WebLock Debug - Button replaced, adding click listener");
+      
+      newSetupBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Setup button clicked!");
+        this.handleSetup(e);
+      });
+      console.log("WebLock Debug - Click listener added successfully");
+    }
+    
+    const setupInputs = document.querySelectorAll("#setupForm input");
+    console.log("WebLock Debug - Found", setupInputs.length, "form inputs");
+    
+    setupInputs.forEach((input, index) => {
+      input.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log("Enter key pressed on input", index);
+          this.handleSetup(e);
+        }
+      });
+    });
+    
+    console.log("WebLock Debug - bindSetupPageEvents completed");
   }
 
   showMainPage() {
@@ -95,8 +175,7 @@ class WebLockOptions {
         let hostname = blockedUrl;
         try {
           hostname = decodeURIComponent(blockedUrl);
-        } catch (e) {
-        }
+        } catch (e) {}
         hostname = hostname
           .replace(/^https?:\/\//, "")
           .split("/")[0]
@@ -116,11 +195,6 @@ class WebLockOptions {
   }
 
   async showDashboardUnlockPage() {
-    const data = await this.getStorageData(["isSetup"]);
-    if (!data.isSetup) {
-      this.showSetupPage();
-      return;
-    }
     this.hideAllPages();
     this.unlockPage.classList.remove("hidden");
     document.title = "Dashboard Access - WebLock";
@@ -186,10 +260,6 @@ class WebLockOptions {
   }
 
   bindEvents() {
-    const setupForm = document.getElementById("setupForm");
-    if (setupForm) {
-      setupForm.addEventListener("submit", this.handleSetup.bind(this));
-    }
     const addUrlBtn = document.getElementById("addUrlBtn");
     if (addUrlBtn) {
       addUrlBtn.addEventListener("click", this.handleAddUrl.bind(this));
@@ -312,34 +382,124 @@ class WebLockOptions {
   }
 
   async handleSetup(e) {
+    console.log("WebLock Debug - handleSetup called");
     e.preventDefault();
-    const email = document.getElementById("recoveryEmail").value;
-    const password = document.getElementById("password").value;
-    const confirmPassword = document.getElementById("confirmPassword").value;
-    this.clearErrors();
-    if (!this.isValidEmail(email)) {
-      this.showError("emailError", "Please enter a valid email address");
+    e.stopPropagation();
+    
+    const setupBtn = document.getElementById("setupWebLockBtn");
+    console.log("WebLock Debug - Setup button found:", !!setupBtn);
+    
+    if (setupBtn && setupBtn.disabled) {
+      console.log("WebLock Debug - Button already disabled, preventing double submission");
       return;
     }
-    if (password.length < 4) {
-      this.showError("passwordError", "Password must be at least 4 characters");
-      return;
+    
+    if (setupBtn) {
+      setupBtn.disabled = true;
+      setupBtn.textContent = "Setting up...";
+      console.log("WebLock Debug - Button disabled and text changed");
     }
-    if (password !== confirmPassword) {
-      this.showError("confirmError", "Passwords do not match");
-      return;
+    
+    try {
+      const email = document.getElementById("recoveryEmail").value;
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+      
+      console.log("WebLock Debug - Form elements found:", {
+        emailElement: !!document.getElementById("recoveryEmail"),
+        passwordElement: !!document.getElementById("password"),
+        confirmElement: !!document.getElementById("confirmPassword")
+      });
+      
+      console.log("WebLock Debug - Form values:", { 
+        email: email ? "***filled***" : "empty", 
+        password: password ? "***filled***" : "empty",
+        confirmPassword: confirmPassword ? "***filled***" : "empty"
+      });
+      
+      this.clearErrors();
+      console.log("WebLock Debug - Form validation passed, starting setup process");
+      
+      if (!this.isValidEmail(email)) {
+        console.log("WebLock Debug - Email validation failed");
+        this.showError("emailError", "Please enter a valid email address");
+        return;
+      }
+      if (password.length < 4) {
+        console.log("WebLock Debug - Password length validation failed");
+        this.showError("passwordError", "Password must be at least 4 characters");
+        return;
+      }
+      if (password !== confirmPassword) {
+        console.log("WebLock Debug - Password confirmation failed");
+        this.showError("confirmError", "Passwords do not match");
+        return;
+      }
+
+      console.log("WebLock Debug - All validations passed, hashing password");
+      const passwordHash = await this.hashPassword(password);
+      console.log("WebLock Debug - Password hashed successfully");
+      
+      console.log("WebLock Debug - Saving setup data to storage");
+      await this.setStorageData({
+        isSetup: true,
+        recoveryEmail: email,
+        passwordHash: passwordHash,
+        lockedUrls: [],
+        extensionStartTime: Date.now(),
+      });
+      console.log("WebLock Debug - Setup data saved successfully");
+
+      console.log("WebLock Debug - Sending message to background script");
+      await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: "setupComplete" }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error("WebLock Debug - Background message error:", chrome.runtime.lastError);
+            reject(chrome.runtime.lastError);
+          } else {
+            console.log("WebLock Debug - Background message response:", response);
+            resolve(response);
+          }
+        });
+      });
+      console.log("WebLock Debug - Background script notified successfully");
+
+      this.showSuccess("Setup complete! Redirecting to dashboard...");
+
+      setTimeout(async () => {
+        try {
+          const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+          if (tab) {
+            await chrome.tabs.update(tab.id, {
+              url: chrome.runtime.getURL("options.html?action=dashboard")
+            });
+          }
+        } catch (error) {
+          this.showMainPage();
+        }
+      }, 1500);
+      
+    } catch (error) {
+      console.error("WebLock Debug - Setup error occurred:");
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+      console.error("Full error object:", error);
+      
+      let errorMessage = "An error occurred during setup. Please try again.";
+      if (error.message) {
+        errorMessage = `Setup failed: ${error.message}`;
+      }
+      
+      this.showNotification(errorMessage, "error");
+      
+      const setupBtn = document.getElementById("setupWebLockBtn");
+      if (setupBtn) {
+        setupBtn.disabled = false;
+        setupBtn.textContent = "Setup WebLock";
+        console.log("WebLock Debug - Button re-enabled after error");
+      }
     }
-    const passwordHash = await this.hashPassword(password);
-    await this.setStorageData({
-      isSetup: true,
-      recoveryEmail: email,
-      passwordHash: passwordHash,
-      lockedUrls: [],
-    });
-    this.showSuccess("Setup complete! Redirecting to dashboard...");
-    setTimeout(() => {
-      this.showMainPage();
-    }, 1500);
   }
 
   async handleAddUrl() {
@@ -951,7 +1111,7 @@ class WebLockOptions {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                z-index: 10000;
+                z-index: 9999;
                 backdrop-filter: blur(5px);
             `;
       const modal = document.createElement("div");
@@ -1135,6 +1295,13 @@ class WebLockOptions {
 }
 
 let webLockOptions;
+console.log("WebLock Debug - Script loaded, waiting for DOM");
 document.addEventListener("DOMContentLoaded", () => {
-  webLockOptions = new WebLockOptions();
+  console.log("WebLock Debug - DOM loaded, creating options instance");
+  try {
+    webLockOptions = new WebLockOptions();
+    console.log("WebLock Debug - Options instance created:", !!webLockOptions);
+  } catch (error) {
+    console.error("WebLock Error - Failed to create options instance:", error);
+  }
 });

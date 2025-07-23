@@ -15,7 +15,7 @@
             </div>
             
             <div class="setup-card">
-                <form id="setupForm">
+                <form id="setupForm" onsubmit="return false;">
                     <div class="form-group">
                         <label for="recoveryEmail">Recovery Email</label>
                         <input type="email" id="recoveryEmail" required placeholder="Enter your email address">
@@ -34,7 +34,7 @@
                         <span class="error" id="confirmError"></span>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">Setup WebLock</button>
+                    <button type="button" id="setupWebLockBtn" class="btn btn-primary">Setup WebLock</button>
                 </form>
             </div>
         </div>

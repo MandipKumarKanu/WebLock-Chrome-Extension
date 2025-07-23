@@ -2,59 +2,103 @@ class WebLockBackground {
   constructor() {
     this.recentRedirects = new Map();
     this.tabSessions = new Map();
+    this.setupComplete = false;
     this.init();
   }
 
-  init() {
+  async init() {
+    await this.checkSetupStatus();
+    
+    chrome.tabs.onRemoved.addListener(this.handleTabRemoved.bind(this));
+    chrome.runtime.onStartup.addListener(this.clearTemporaryUnlocks.bind(this));
+    chrome.runtime.onInstalled.addListener(this.clearTemporaryUnlocks.bind(this));
+    chrome.action.onClicked.addListener(this.handleIconClick.bind(this));
+    chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
+    
+    if (this.setupComplete) {
+      this.addNavigationListeners();
+      await this.initializeSessionData();
+      this.startPeriodicRefresh();
+    }
+  }
+
+  async checkSetupStatus() {
+    try {
+      const data = await this.getStorageData(["isSetup"]);
+      this.setupComplete = !!data.isSetup;
+    } catch (error) {
+      this.setupComplete = false;
+    }
+  }
+
+  addNavigationListeners() {
     chrome.webNavigation.onBeforeNavigate.addListener(
       this.handleNavigation.bind(this),
       { url: [{ schemes: ["http", "https"] }] }
     );
     chrome.tabs.onUpdated.addListener(this.handleTabUpdate.bind(this));
-    chrome.tabs.onRemoved.addListener(this.handleTabRemoved.bind(this));
-    chrome.runtime.onStartup.addListener(this.clearTemporaryUnlocks.bind(this));
-    chrome.runtime.onInstalled.addListener(
-      this.clearTemporaryUnlocks.bind(this)
-    );
-    chrome.action.onClicked.addListener(this.handleIconClick.bind(this));
-    chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
-    this.initializeSessionData();
-    
-    setInterval(async () => {
-      await this.ensureTabSessionsLoaded();
-    }, 10000);
   }
 
   async initializeSessionData() {
-    const data = await this.getStorageData([
-      "sessionUnlocked",
-      "extensionStartTime",
-      "tabSessions",
-    ]);
-    const now = Date.now();
-    const lastStartTime = data.extensionStartTime || 0;
-    const timeDiff = now - lastStartTime;
+    try {
+      const data = await this.getStorageData([
+        "sessionUnlocked",
+        "extensionStartTime",
+        "tabSessions"
+      ]);
+      
+      const now = Date.now();
+      const lastStartTime = data.extensionStartTime || 0;
+      const timeDiff = now - lastStartTime;
 
-    const storedTabSessions = data.tabSessions || {};
-    this.tabSessions.clear();
-    for (const [key, timestamp] of Object.entries(storedTabSessions)) {
-      this.tabSessions.set(key, timestamp);
+      const storedTabSessions = data.tabSessions || {};
+      this.tabSessions.clear();
+      for (const [key, timestamp] of Object.entries(storedTabSessions)) {
+        this.tabSessions.set(key, timestamp);
+      }
+
+      if (timeDiff > 5 * 60 * 1000) {
+        await this.setStorageData({
+          sessionUnlocked: [],
+          oneTimeUnlock: [],
+          dontAskAgainUrls: [],
+          extensionStart极Time: now,
+        });
+      }
+    } catch (error) {
+      console.error("WebLock Error in initializeSessionData:", error);
     }
+  }
 
-    if (timeDiff > 5 * 60 * 1000) {
+  startPeriodicRefresh() {
+    if (!this.setupComplete) return;
+    
+    setInterval(async () => {
+      try {
+        await this.ensureTabSessionsLoaded();
+      } catch (error) {
+        console.error("WebLock Error in periodic refresh:", error);
+      }
+    }, 15000);
+  }
+
+  async clearTemporaryUnlocks() {
+    try {
+      const data = await this.getStorageData(["isSetup"]);
+      if (!data.isSetup) return;
+      
       await this.setStorageData({
-        sessionUnlocked: [],
+        temporarilyUnlocked: [],
         oneTimeUnlock: [],
-        dontAskAgainUrls: [],
-        extensionStartTime: now,
       });
-    } else {
-      await this.setStorageData({ extensionStartTime: now });
+    } catch (error) {
+      console.error("WebLock Error in clearTemporaryUnlocks:", error);
     }
   }
 
   async handleNavigation(details) {
     if (details.frameId !== 0) return;
+    if (!this.setupComplete) return;
     if (details.url.includes(chrome.runtime.getURL("options.html"))) return;
     
     setTimeout(async () => {
@@ -64,6 +108,8 @@ class WebLockBackground {
 
   async handleTabUpdate(tabId, changeInfo, tab) {
     if (!changeInfo.url && changeInfo.status !== "loading") return;
+    if (!this.setupComplete) return;
+    
     const url = changeInfo.url || tab.url;
     if (url) {
       if (url.includes(chrome.runtime.getURL("options.html"))) return;
@@ -120,7 +166,9 @@ class WebLockBackground {
 
   async checkAndBlockUrl(url, tabId) {
     try {
-      await this.ensureTabSessionsLoaded();
+      if (url.includes(chrome.runtime.getURL("options.html"))) {
+        return;
+      }
       
       const data = await this.getStorageData([
         "lockedUrls",
@@ -130,9 +178,11 @@ class WebLockBackground {
         "dontAskAgainUrls",
         "isSetup",
       ]);
-      if (!data.isSetup) {
-        return;
-      }
+      
+      if (!data.isSetup) return;
+      
+      await this.ensureTabSessionsLoaded();
+      
       const lockedUrls = data.lockedUrls || [];
       const temporarilyUnlocked = data.temporarilyUnlocked || [];
       const sessionUnlocked = data.sessionUnlocked || [];
@@ -151,11 +201,6 @@ class WebLockBackground {
         const isOneTimeUnlocked = oneTimeUnlock.includes(lockedUrl.id);
         const tabSessionKey = `${tabId}-${lockedUrl.id}`;
         const isTabUnlocked = this.tabSessions.has(tabSessionKey);
-
-        console.log(`WebLock Debug - Checking access for ${url} on tab ${tabId}`);
-        console.log(`WebLock Debug - Tab session key: ${tabSessionKey}`);
-        console.log(`WebLock Debug - Tab unlocked: ${isTabUnlocked}`);
-        console.log(`WebLock Debug - Available tab sessions:`, Array.from(this.tabSessions.keys()));
 
         if (
           !isTemporarilyUnlocked &&
@@ -180,7 +225,6 @@ class WebLockBackground {
             `?action=unlock&url=${encodeURIComponent(url)}`;
           await chrome.tabs.update(tabId, { url: unlockPageUrl });
         } else {
-          console.log(`WebLock Debug - Access allowed for ${url}`);
           if (isOneTimeUnlocked) {
             setTimeout(async () => {
               try {
@@ -206,8 +250,6 @@ class WebLockBackground {
     for (const [key, timestamp] of Object.entries(storedTabSessions)) {
       this.tabSessions.set(key, timestamp);
     }
-    
-    console.log(`WebLock Debug - Loaded tab sessions from storage:`, Object.keys(storedTabSessions));
   }
 
   urlMatches(currentUrl, lockedUrl) {
@@ -228,13 +270,6 @@ class WebLockBackground {
       chrome.runtime.getURL("options.html") + "?action=dashboard";
     await chrome.tabs.create({
       url: unlockPageUrl,
-    });
-  }
-
-  async clearTemporaryUnlocks() {
-    await this.setStorageData({
-      temporarilyUnlocked: [],
-      oneTimeUnlock: [],
     });
   }
 
@@ -263,11 +298,7 @@ class WebLockBackground {
     const tabSessionKey = `${tabId}-${urlId}`;
     const timestamp = Date.now();
     this.tabSessions.set(tabSessionKey, timestamp);
-    
     this.saveTabSessions();
-    
-    console.log(`WebLock Debug - Tab session unlocked for tab ${tabId}, url ${urlId}`);
-    console.log(`WebLock Debug - Session key: ${tabSessionKey} at timestamp: ${timestamp}`);
     return true;
   }
 
@@ -277,10 +308,11 @@ class WebLockBackground {
       tabSessionsObj[key] = timestamp;
     }
     await this.setStorageData({ tabSessions: tabSessionsObj });
-    console.log(`WebLock Debug - Saved tab sessions to storage:`, Object.keys(tabSessionsObj));
   }
 
-  handleMessage(request, sender, sendResponse) {
+  async handleMessage(request, sender, sendResponse) {
+    console.log("WebLock Debug - Message received:", request.action);
+    
     if (request.action === "unlockTabSession") {
       try {
         const { tabId, urlId } = request;
@@ -291,6 +323,26 @@ class WebLockBackground {
       }
       return true;
     }
+    
+    if (request.action === "setupComplete") {
+      console.log("WebLock Debug - Setup completion received");
+      this.setupComplete = true;
+      
+      sendResponse({ success: true });
+      console.log("WebLock Debug - Response sent to options script");
+      
+      this.addNavigationListeners();
+      
+      this.initializeSessionData().then(() => {
+        this.startPeriodicRefresh();
+        console.log("WebLock Debug - Setup completion processed");
+      }).catch(error => {
+        console.error("WebLock Error during post-setup initialization:", error);
+      });
+      
+      return true;
+    }
+    
     sendResponse({ success: false, error: "Unknown action" });
     return true;
   }
