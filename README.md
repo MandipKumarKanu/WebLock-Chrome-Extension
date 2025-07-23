@@ -2,6 +2,10 @@
 
 A Chrome extension that locks access to specified websites with password protection, keeping your private browsing secure from prying eyes.
 
+## 📸 Screenshot
+
+![WebLock Screenshot](screenshot.png)
+
 ## 🎯 What It Does
 
 WebLock acts as a digital security guard for your browser tabs. When someone (including yourself) tries to access a protected website, they'll need to enter your password first. Perfect for keeping sensitive sites like banking, social media, or work platforms secure when others might use your computer.
