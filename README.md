@@ -16,8 +16,8 @@ WebLock acts as a digital security guard for your browser tabs. When someone (in
    - Clone this repository or download as ZIP
    - Extract to a folder on your computer
 
-2. **Install in Chrome**
-   - Open Chrome and go to `chrome://extensions/`
+2. **Install in Chromimum based browswer**
+   - Open Browser and go to extensions option from the browswer menu
    - Enable "Developer mode" (toggle in top-right)
    - Click "Load unpacked" and select the extension folder
    - The WebLock icon should appear in your browser toolbar
@@ -31,7 +31,7 @@ WebLock acts as a digital security guard for your browser tabs. When someone (in
 
 ### Core Protection
 - **Password-Protected Access**: Secure your sensitive websites behind a master password
-- **Smart URL Matching**: Protects entire domains (e.g., protecting `facebook.com` blocks all Facebook pages)
+- **Smart URL Matching**: Protects entire domains including www variations (e.g., protecting `facebook.com` blocks both `facebook.com` and `www.facebook.com`)
 - **Instant Blocking**: Protection activates immediately after adding a website
 
 ### Unlock Modes
@@ -60,7 +60,8 @@ WebLock acts as a digital security guard for your browser tabs. When someone (in
 2. **Add Websites to Protect**
    - In the dashboard, enter a website URL (e.g., `https://facebook.com`)
    - Click "Add Website"
-   - The site is now password-protected
+   - The site is now password-protected (includes www variations automatically)
+   - **Note**: Adding `facebook.com` protects both `facebook.com` and `www.facebook.com`
 
 3. **Access Protected Sites**
    - Try visiting a protected website

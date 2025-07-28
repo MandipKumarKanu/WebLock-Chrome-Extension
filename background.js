@@ -179,7 +179,9 @@ class WebLockBackground {
         "isSetup",
       ]);
       
-      if (!data.isSetup) return;
+      if (!data.isSetup) {
+        return;
+      }
       
       await this.ensureTabSessionsLoaded();
       
@@ -191,6 +193,7 @@ class WebLockBackground {
       const lockedUrl = lockedUrls.find((item) =>
         this.urlMatches(url, item.url)
       );
+      
       if (lockedUrl) {
         const isTemporarilyUnlocked = temporarilyUnlocked.includes(
           lockedUrl.id
@@ -257,7 +260,15 @@ class WebLockBackground {
       const current = new URL(currentUrl);
       const locked = new URL(lockedUrl);
 
-      return current.hostname === locked.hostname;
+      // Normalize hostnames by removing www prefix for comparison
+      const normalizeHostname = (hostname) => {
+        return hostname.startsWith('www.') ? hostname.substring(4) : hostname;
+      };
+
+      const currentNormalized = normalizeHostname(current.hostname);
+      const lockedNormalized = normalizeHostname(locked.hostname);
+
+      return currentNormalized === lockedNormalized;
     } catch (error) {
       return false;
     }
@@ -311,8 +322,6 @@ class WebLockBackground {
   }
 
   async handleMessage(request, sender, sendResponse) {
-    console.log("WebLock Debug - Message received:", request.action);
-    
     if (request.action === "unlockTabSession") {
       try {
         const { tabId, urlId } = request;
@@ -325,17 +334,14 @@ class WebLockBackground {
     }
     
     if (request.action === "setupComplete") {
-      console.log("WebLock Debug - Setup completion received");
       this.setupComplete = true;
       
       sendResponse({ success: true });
-      console.log("WebLock Debug - Response sent to options script");
       
       this.addNavigationListeners();
       
       this.initializeSessionData().then(() => {
         this.startPeriodicRefresh();
-        console.log("WebLock Debug - Setup completion processed");
       }).catch(error => {
         console.error("WebLock Error during post-setup initialization:", error);
       });
