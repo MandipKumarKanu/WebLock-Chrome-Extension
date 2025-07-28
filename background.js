@@ -62,7 +62,8 @@ class WebLockBackground {
           sessionUnlocked: [],
           oneTimeUnlock: [],
           dontAskAgainUrls: [],
-          extensionStart极Time: now,
+          dashboardSessionUnlocked: false,
+          extensionStartTime: now,
         });
       }
     } catch (error) {
@@ -90,6 +91,7 @@ class WebLockBackground {
       await this.setStorageData({
         temporarilyUnlocked: [],
         oneTimeUnlock: [],
+        dashboardSessionUnlocked: false,
       });
     } catch (error) {
       console.error("WebLock Error in clearTemporaryUnlocks:", error);
@@ -135,6 +137,7 @@ class WebLockBackground {
         const sessionData = await this.getStorageData([
           "sessionUnlocked",
           "dontAskAgainUrls",
+          "dashboardSessionUnlocked",
         ]);
         const updateData = {};
         if (
@@ -148,6 +151,9 @@ class WebLockBackground {
           sessionData.dontAskAgainUrls.length > 0
         ) {
           updateData.dontAskAgainUrls = [];
+        }
+        if (sessionData.dashboardSessionUnlocked) {
+          updateData.dashboardSessionUnlocked = false;
         }
         if (Object.keys(updateData).length > 0) {
           await this.setStorageData(updateData);

@@ -31,7 +31,13 @@ class WebLockOptions {
     if (action === "dashboard") {
       const isSetup = await this.isSetupComplete();
       if (isSetup) {
-        await this.showDashboardUnlockPage();
+        // Check if dashboard access is unlocked for this session
+        const data = await this.getStorageData(["dashboardSessionUnlocked"]);
+        if (data.dashboardSessionUnlocked) {
+          this.showMainPage();
+        } else {
+          await this.showDashboardUnlockPage();
+        }
       } else {
         this.showSetupPage();
       }
@@ -173,9 +179,10 @@ class WebLockOptions {
     if (urlDisplay) {
       urlDisplay.textContent = "🔒 Dashboard Access Required";
     }
-    const dontAskContainer = document.querySelector(".checkbox-container");
+    // Allow "Don't ask again" checkbox for dashboard access
+    const dontAskContainer = document.querySelector(".unlock-options");
     if (dontAskContainer) {
-      dontAskContainer.style.display = "none";
+      dontAskContainer.style.display = "block";
     }
     this.dashboardAccess = true;
     this.currentBlockedUrl = null;
@@ -476,8 +483,17 @@ class WebLockOptions {
   }
 
   async loadLockedUrls() {
-    const data = await this.getStorageData(["lockedUrls"]);
+    const data = await this.getStorageData([
+      "lockedUrls", 
+      "temporarilyUnlocked", 
+      "sessionUnlocked", 
+      "dontAskAgainUrls"
+    ]);
     const lockedUrls = data.lockedUrls || [];
+    const temporarilyUnlocked = data.temporarilyUnlocked || [];
+    const sessionUnlocked = data.sessionUnlocked || [];
+    const dontAskAgainUrls = data.dontAskAgainUrls || [];
+    
     const listContainer = document.getElementById("lockedUrlsList");
     const emptyState = document.getElementById("emptyState");
     const urlCount = document.getElementById("urlCount");
@@ -497,13 +513,24 @@ class WebLockOptions {
         .map((item) => {
           const url = new URL(item.url);
           const createdDate = new Date(item.createdAt).toLocaleDateString();
+          
+          // Check if this URL is currently unlocked
+          const isTemporarilyUnlocked = temporarilyUnlocked.includes(item.id);
+          const isInDontAskAgainList = dontAskAgainUrls.includes(item.id);
+          const isSessionUnlocked = isInDontAskAgainList && sessionUnlocked.includes(item.id);
+          const isCurrentlyUnlocked = isTemporarilyUnlocked || isSessionUnlocked;
+          
+          const unlockButtonText = isCurrentlyUnlocked ? "🔒 Lock Website" : "🔓 Unlock Temporarily";
+          const unlockButtonClass = isCurrentlyUnlocked ? "btn-lock" : "btn-unlock";
+          const unlockAction = isCurrentlyUnlocked ? "lock" : "unlock";
+          
           return `
                     <div class="url-item" data-id="${item.id}">
                         <div class="url-text">${item.url}</div>
                         <div class="url-meta">Protected since ${createdDate}</div>
                         <div class="url-actions">
                             <button class="btn btn-small btn-edit" data-action="edit" data-id="${item.id}">✏️ Edit</button>
-                            <button class="btn btn-small btn-unlock" data-action="unlock" data-id="${item.id}">🔓 Unlock Temporarily</button>
+                            <button class="btn btn-small ${unlockButtonClass}" data-action="${unlockAction}" data-id="${item.id}">${unlockButtonText}</button>
                             <button class="btn btn-small btn-remove" data-action="remove" data-id="${item.id}">❌ Remove</button>
                         </div>
                     </div>
@@ -526,6 +553,8 @@ class WebLockOptions {
       const id = button.getAttribute("data-id");
       if (action === "unlock") {
         this.unlockUrl(id);
+      } else if (action === "lock") {
+        this.lockUrl(id);
       } else if (action === "edit") {
         this.editUrl(id);
       } else if (action === "remove") {
@@ -545,6 +574,37 @@ class WebLockOptions {
       "Website temporarily unlocked until browser restart",
       "success"
     );
+    // Refresh the list to show updated button state
+    await this.loadLockedUrls();
+  }
+
+  async lockUrl(id) {
+    const data = await this.getStorageData([
+      "temporarilyUnlocked", 
+      "sessionUnlocked", 
+      "dontAskAgainUrls"
+    ]);
+    const temporarilyUnlocked = data.temporarilyUnlocked || [];
+    const sessionUnlocked = data.sessionUnlocked || [];
+    const dontAskAgainUrls = data.dontAskAgainUrls || [];
+    
+    // Remove from all unlock lists
+    const updatedTemporarilyUnlocked = temporarilyUnlocked.filter(unlockId => unlockId !== id);
+    const updatedSessionUnlocked = sessionUnlocked.filter(unlockId => unlockId !== id);
+    const updatedDontAskAgainUrls = dontAskAgainUrls.filter(unlockId => unlockId !== id);
+    
+    await this.setStorageData({
+      temporarilyUnlocked: updatedTemporarilyUnlocked,
+      sessionUnlocked: updatedSessionUnlocked,
+      dontAskAgainUrls: updatedDontAskAgainUrls
+    });
+    
+    this.showNotification(
+      "Website locked and protection restored",
+      "success"
+    );
+    // Refresh the list to show updated button state
+    await this.loadLockedUrls();
   }
 
   async editUrl(id) {
@@ -615,6 +675,11 @@ class WebLockOptions {
       if (hash === data.passwordHash) {
         this.showNotification("Password correct! Processing...", "success");
         if (this.dashboardAccess) {
+          // Handle dashboard session unlocking
+          const dontAskAgain = askAgainCheckbox && askAgainCheckbox.checked;
+          if (dontAskAgain) {
+            await this.setStorageData({ dashboardSessionUnlocked: true });
+          }
           setTimeout(() => {
             this.showMainPage();
           }, 1500);

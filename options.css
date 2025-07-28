@@ -319,6 +319,21 @@ body {
   color: white;
 }
 
+.btn-unlock:hover {
+  background: #42b8b1;
+  transform: translateY(-1px);
+}
+
+.btn-lock {
+  background: #ffa726;
+  color: white;
+}
+
+.btn-lock:hover {
+  background: #ff9800;
+  transform: translateY(-1px);
+}
+
 .btn-edit {
   background: #667eea;
   color: white;
