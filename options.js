@@ -116,6 +116,7 @@ class WebLockOptions {
     document.title = "WebLock Dashboard";
     this.bindMainPageEvents();
     this.loadLockedUrls();
+    this.updateDashboardSessionBanner();
     setTimeout(() => {
       this.bindUrlActionEvents();
     }, 100);
@@ -179,7 +180,7 @@ class WebLockOptions {
     if (urlDisplay) {
       urlDisplay.textContent = "🔒 Dashboard Access Required";
     }
-    // Allow "Don't ask again" checkbox for dashboard access
+
     const dontAskContainer = document.querySelector(".unlock-options");
     if (dontAskContainer) {
       dontAskContainer.style.display = "block";
@@ -357,6 +358,13 @@ class WebLockOptions {
       const newBackToMainBtn = document.getElementById("backToMainBtn");
       newBackToMainBtn.addEventListener("click", this.showMainPage.bind(this));
     }
+
+    const lockDashboardBtn = document.getElementById("lockDashboardBtn");
+    if (lockDashboardBtn) {
+      lockDashboardBtn.replaceWith(lockDashboardBtn.cloneNode(true));
+      const newLockDashboardBtn = document.getElementById("lockDashboardBtn");
+      newLockDashboardBtn.addEventListener("click", this.lockDashboard.bind(this));
+    }
   }
 
   async handleSetup(e) {
@@ -514,7 +522,6 @@ class WebLockOptions {
           const url = new URL(item.url);
           const createdDate = new Date(item.createdAt).toLocaleDateString();
           
-          // Check if this URL is currently unlocked
           const isTemporarilyUnlocked = temporarilyUnlocked.includes(item.id);
           const isInDontAskAgainList = dontAskAgainUrls.includes(item.id);
           const isSessionUnlocked = isInDontAskAgainList && sessionUnlocked.includes(item.id);
@@ -539,6 +546,23 @@ class WebLockOptions {
         .join("");
       this.bindUrlActionEvents();
     }
+  }
+
+  async updateDashboardSessionBanner() {
+    const data = await this.getStorageData(["dashboardSessionUnlocked"]);
+    const banner = document.getElementById("dashboardSessionBanner");
+    
+    if (data.dashboardSessionUnlocked) {
+      banner.classList.remove("hidden");
+    } else {
+      banner.classList.add("hidden");
+    }
+  }
+
+  async lockDashboard() {
+    await this.setStorageData({ dashboardSessionUnlocked: false });
+    this.updateDashboardSessionBanner();
+    this.showNotification("Dashboard locked - password will be required on next access", "success");
   }
 
   bindUrlActionEvents() {
@@ -574,7 +598,7 @@ class WebLockOptions {
       "Website temporarily unlocked until browser restart",
       "success"
     );
-    // Refresh the list to show updated button state
+
     await this.loadLockedUrls();
   }
 
@@ -588,7 +612,7 @@ class WebLockOptions {
     const sessionUnlocked = data.sessionUnlocked || [];
     const dontAskAgainUrls = data.dontAskAgainUrls || [];
     
-    // Remove from all unlock lists
+
     const updatedTemporarilyUnlocked = temporarilyUnlocked.filter(unlockId => unlockId !== id);
     const updatedSessionUnlocked = sessionUnlocked.filter(unlockId => unlockId !== id);
     const updatedDontAskAgainUrls = dontAskAgainUrls.filter(unlockId => unlockId !== id);
@@ -603,7 +627,7 @@ class WebLockOptions {
       "Website locked and protection restored",
       "success"
     );
-    // Refresh the list to show updated button state
+
     await this.loadLockedUrls();
   }
 
@@ -675,7 +699,7 @@ class WebLockOptions {
       if (hash === data.passwordHash) {
         this.showNotification("Password correct! Processing...", "success");
         if (this.dashboardAccess) {
-          // Handle dashboard session unlocking
+
           const dontAskAgain = askAgainCheckbox && askAgainCheckbox.checked;
           if (dontAskAgain) {
             await this.setStorageData({ dashboardSessionUnlocked: true });
@@ -796,11 +820,8 @@ class WebLockOptions {
   }
 
   async handleReset() {
-    if (
-      !confirm(
-        "This will reset the entire extension and remove all protected websites. Are you sure?"
-      )
-    ) {
+    const confirmed = await this.showResetConfirmDialog();
+    if (!confirmed) {
       return;
     }
     await chrome.storage.local.clear();
@@ -975,7 +996,6 @@ class WebLockOptions {
       const current = new URL(currentUrl);
       const locked = new URL(lockedUrl);
 
-      // Normalize hostnames by removing www prefix for comparison
       const normalizeHostname = (hostname) => {
         return hostname.startsWith('www.') ? hostname.substring(4) : hostname;
       };
@@ -1295,6 +1315,125 @@ class WebLockOptions {
           resolve(false);
         }
       });
+      document.addEventListener("keydown", function escapeHandler(e) {
+        if (e.key === "Escape") {
+          document.removeEventListener("keydown", escapeHandler);
+          cleanup();
+          resolve(false);
+        }
+      });
+    });
+  }
+
+  async showResetConfirmDialog() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                backdrop-filter: blur(5px);
+            `;
+      const modal = document.createElement("div");
+      modal.style.cssText = `
+                background: white;
+                border-radius: 16px;
+                padding: 2rem;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                animation: modalSlideIn 0.3s ease-out;
+            `;
+      modal.innerHTML = `
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🔄</div>
+                <h3 style="margin: 0 0 1rem 0; color: #333; font-size: 1.5rem;">Reset Extension</h3>
+                <p style="margin: 0 0 1.5rem 0; color: #666; line-height: 1.5;">
+                    This will <strong>permanently delete</strong> all your protected websites, passwords, and settings.
+                </p>
+                <p style="margin: 0 0 2rem 0; color: #ff6b6b; font-size: 0.95rem; font-weight: 600;">
+                    ⚠️ This action cannot be undone!
+                </p>
+                <div style="display: flex; align-items: center; justify-content: center; margin: 2rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #ff6b6b;">
+                    <input type="checkbox" id="resetConfirmCheckbox" style="margin-right: 0.75rem; width: 18px; height: 18px; cursor: pointer;">
+                    <label for="resetConfirmCheckbox" style="color: #333; font-weight: 600; cursor: pointer; text-align: left; line-height: 1.4;">
+                        I understand this will permanently delete all my data and cannot be undone
+                    </label>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button id="cancelResetBtn" style="
+                        padding: 0.75rem 1.5rem;
+                        border: 2px solid #e1e8ed;
+                        background: white;
+                        color: #666;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        min-width: 100px;
+                    ">Cancel</button>
+                    <button id="confirmResetBtn" disabled style="
+                        padding: 0.75rem 1.5rem;
+                        border: none;
+                        background: #cccccc;
+                        color: white;
+                        border-radius: 8px;
+                        cursor: not-allowed;
+                        font-weight: 600;
+                        min-width: 100px;
+                        transition: all 0.3s ease;
+                    ">Reset Extension</button>
+                </div>
+            `;
+      
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      
+      const cancelBtn = modal.querySelector("#cancelResetBtn");
+      const confirmBtn = modal.querySelector("#confirmResetBtn");
+      const checkbox = modal.querySelector("#resetConfirmCheckbox");
+      
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          confirmBtn.disabled = false;
+          confirmBtn.style.background = "#ff6b6b";
+          confirmBtn.style.cursor = "pointer";
+        } else {
+          confirmBtn.disabled = true;
+          confirmBtn.style.background = "#cccccc";
+          confirmBtn.style.cursor = "not-allowed";
+        }
+      });
+      
+      const cleanup = () => {
+        document.body.removeChild(overlay);
+      };
+      
+      cancelBtn.addEventListener("click", () => {
+        cleanup();
+        resolve(false);
+      });
+      
+      confirmBtn.addEventListener("click", () => {
+        if (checkbox.checked) {
+          cleanup();
+          resolve(true);
+        }
+      });
+      
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          cleanup();
+          resolve(false);
+        }
+      });
+      
       document.addEventListener("keydown", function escapeHandler(e) {
         if (e.key === "Escape") {
           document.removeEventListener("keydown", escapeHandler);

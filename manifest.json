@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WebLock",
-  "version": "1.0",
+  "version": "1.4",
   "description": "A website locker extension with password protection",
   "permissions": [
     "storage",

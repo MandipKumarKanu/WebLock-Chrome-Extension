@@ -266,7 +266,6 @@ class WebLockBackground {
       const current = new URL(currentUrl);
       const locked = new URL(lockedUrl);
 
-      // Normalize hostnames by removing www prefix for comparison
       const normalizeHostname = (hostname) => {
         return hostname.startsWith('www.') ? hostname.substring(4) : hostname;
       };

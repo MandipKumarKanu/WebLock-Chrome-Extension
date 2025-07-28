@@ -74,6 +74,57 @@ body {
   gap: 1rem;
 }
 
+.session-banner {
+  background: linear-gradient(135deg, #c4862a, #c4862a);
+  border: none;
+  padding: 1rem 0;
+  box-shadow: 0 4px 15px rgba(255, 167, 38, 0.3);
+}
+
+.session-banner.hidden {
+  display: none;
+}
+
+.session-banner-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.session-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.session-banner-icon {
+  font-size: 1.2rem;
+}
+
+.session-banner-text {
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.btn-lock-dashboard {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+  transition: all 0.3s ease;
+}
+
+.btn-lock-dashboard:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
 .card {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 20px;
@@ -566,6 +617,17 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
